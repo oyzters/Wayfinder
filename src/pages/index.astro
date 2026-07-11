@@ -1,0 +1,992 @@
+---
+import {
+  BLOCKS,
+  STATUSES,
+  SEMESTERS,
+  ENGLISH,
+  EXTRACURRICULARES,
+} from "../data/curriculum.js";
+
+const LIGHT_BLOCKS = new Set(["admin_proyectos", "practica_profesional"]);
+
+/** Helpers de render */
+const inkFor = (block) => (LIGHT_BLOCKS.has(block) ? "#23272e" : "#ffffff");
+const metaText = (course) =>
+  course.credits > 0
+    ? `${course.hours} · ${course.credits.toFixed(2)} c`
+    : course.hours;
+
+const blockEntries = Object.entries(BLOCKS);
+const statusEntries = Object.entries(STATUSES);
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Seguimiento del mapa curricular — Ingeniería en Software 2023 (ITSON)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Wayfinder · Ingeniería en Software 2023</title>
+    <script is:inline>
+      // Guard: solo escritorio. Detecta móvil/tablet (UA o puntero táctil).
+      (function () {
+        try {
+          var ua = navigator.userAgent || "";
+          var mobileUA =
+            /Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini|Mobile|Silk/i.test(
+              ua
+            );
+          var coarse =
+            window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+          if (mobileUA || coarse)
+            document.documentElement.classList.add("is-mobile");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- Guard móvil: solo se muestra en teléfonos/tablets -->
+    <div class="mobile-gate">
+      <div class="gate-card">
+        <span class="brand-badge">ISW</span>
+        <h1>Wayfinder</h1>
+        <p class="gate-title">Disponible solo en computadora</p>
+        <p class="gate-sub">
+          El mapa curricular necesita una pantalla amplia para verse bien.
+          Ábrelo desde una laptop o PC de escritorio para marcar tu progreso.
+        </p>
+      </div>
+    </div>
+
+    <div class="app">
+      <!-- Encabezado -->
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-badge">ISW</span>
+          <div class="brand-text">
+            <h1>Wayfinder</h1>
+            <p>Ingeniero en Software 2023 · ITSON</p>
+          </div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-head">
+            <span class="progress-label">Progreso del plan</span>
+            <span class="progress-pct" id="pct">0%</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+          <div class="progress-sub">
+            <span><b id="cr-done">0.00</b> / <span id="cr-total">0.00</span> créditos completados</span>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat s-completada"><b id="n-completada">0</b><span>Completadas</span></div>
+          <div class="stat s-en_curso"><b id="n-en_curso">0</b><span>En curso</span></div>
+          <div class="stat s-planeada"><b id="n-planeada">0</b><span>Planeadas</span></div>
+          <div class="stat s-pendiente"><b id="n-pendiente">0</b><span>Pendientes</span></div>
+        </div>
+      </header>
+
+      <!-- Barra de ayuda / acciones -->
+      <div class="toolbar">
+        <p class="hint">
+          <b>Clic</b> para avanzar el estado · <b>Clic derecho</b> para retroceder
+        </p>
+        <div class="status-legend">
+          {statusEntries.map(([key, s]) => (
+            <span class={`chip st-${key}`}><i class="dot"></i>{s.label}</span>
+          ))}
+        </div>
+        <button class="btn-reset" id="reset" type="button">Reiniciar</button>
+      </div>
+
+      <!-- Mapa curricular -->
+      <div class="map-scroll">
+        <div class="map">
+          <!-- Cabeceras de semestre -->
+          <div class="sem-heads">
+            {SEMESTERS.map((_, i) => (
+              <div class="sem-head"><span>{i + 1}</span></div>
+            ))}
+          </div>
+
+          <!-- Columnas -->
+          <div class="grid">
+            {SEMESTERS.map((semester) => (
+              <div class="col">
+                {semester.map((course) => (
+                  <button
+                    class="course"
+                    data-id={course.id}
+                    data-status="pendiente"
+                    style={`--c:${BLOCKS[course.block].color};--ink:${inkFor(course.block)}`}
+                    title={`${course.name} — ${BLOCKS[course.block].label}`}
+                  >
+                    <span class="badge"></span>
+                    <span class="c-name">{course.name}</span>
+                    <span class="c-foot">
+                      <span class="c-status"></span>
+                      <span class="c-meta">{metaText(course)}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <!-- Inglés universitario (sem. 1–6) -->
+          <div class="track">
+            <div class="track-label">Inglés universitario</div>
+            <div class="grid">
+              {SEMESTERS.map((_, i) => {
+                const course = ENGLISH[i];
+                return (
+                  <div class="col">
+                    {course && (
+                      <button
+                        class="course"
+                        data-id={course.id}
+                        data-status="pendiente"
+                        style={`--c:${BLOCKS.ingles.color};--ink:#ffffff`}
+                        title={`${course.name} — Inglés universitario`}
+                      >
+                        <span class="badge"></span>
+                        <span class="c-name">{course.name}</span>
+                        <span class="c-foot">
+                          <span class="c-status"></span>
+                          <span class="c-meta">{metaText(course)}</span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <!-- Extracurriculares -->
+          <div class="track">
+            <div class="track-label">Extracurriculares</div>
+            <div class="grid">
+              {SEMESTERS.map((_, i) => {
+                const course = EXTRACURRICULARES[i];
+                return (
+                  <div class="col">
+                    {course && (
+                      <button
+                        class="course course--extra"
+                        data-id={course.id}
+                        data-status="pendiente"
+                        style={`--c:${BLOCKS[course.block].color};--ink:#23272e`}
+                        title={`${course.name} — Extracurricular`}
+                      >
+                        <span class="badge"></span>
+                        <span class="c-name">{course.name}</span>
+                        <span class="c-foot">
+                          <span class="c-status"></span>
+                          <span class="c-meta">{metaText(course)}</span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leyenda de bloques -->
+      <section class="blocks">
+        <h2>Bloques del programa</h2>
+        <div class="blocks-grid">
+          {blockEntries.map(([key, b]) => (
+            <div class="block-item">
+              <span class="swatch" style={`background:${b.color}`}></span>
+              <span class="block-name">{b.label}</span>
+              <span class="block-count" data-block-count={key}>0/0</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer class="foot">
+        <span>Datos locales · guardado automático en este navegador (localStorage)</span>
+      </footer>
+    </div>
+
+    <script>
+      import { ALL_COURSES, STATUS_ORDER } from "../data/curriculum.js";
+
+      const KEY = "wayfinder:v1";
+      let state = load();
+
+      function load() {
+        try {
+          return JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+        } catch {
+          return {};
+        }
+      }
+      function save() {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      }
+      const statusOf = (id) => state[id] || "pendiente";
+      const set = (sel, v) => {
+        const e = document.querySelector(sel);
+        if (e) e.textContent = String(v);
+      };
+
+      function setStatus(id, s) {
+        if (s === "pendiente") delete state[id];
+        else state[id] = s;
+        save();
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (el) el.setAttribute("data-status", statusOf(id));
+        renderProgress();
+      }
+
+      function cycle(id, dir) {
+        const i = STATUS_ORDER.indexOf(statusOf(id));
+        const next =
+          STATUS_ORDER[(i + dir + STATUS_ORDER.length) % STATUS_ORDER.length];
+        setStatus(id, next);
+      }
+
+      function renderProgress() {
+        const credited = ALL_COURSES.filter((c) => c.credits > 0);
+        const totalCr = credited.reduce((s, c) => s + c.credits, 0);
+        const doneCr = credited
+          .filter((c) => statusOf(c.id) === "completada")
+          .reduce((s, c) => s + c.credits, 0);
+        const pct = totalCr ? Math.round((doneCr / totalCr) * 100) : 0;
+
+        const counts = { pendiente: 0, planeada: 0, en_curso: 0, completada: 0 };
+        ALL_COURSES.forEach((c) => counts[statusOf(c.id)]++);
+
+        set("#pct", pct + "%");
+        const bar = document.querySelector("#bar");
+        if (bar) bar.style.width = pct + "%";
+        set("#cr-done", doneCr.toFixed(2));
+        set("#cr-total", totalCr.toFixed(2));
+        set("#n-completada", counts.completada);
+        set("#n-en_curso", counts.en_curso);
+        set("#n-planeada", counts.planeada);
+        set("#n-pendiente", counts.pendiente);
+
+        document.querySelectorAll("[data-block-count]").forEach((el) => {
+          const b = el.getAttribute("data-block-count");
+          const list = ALL_COURSES.filter((c) => c.block === b);
+          const done = list.filter((c) => statusOf(c.id) === "completada").length;
+          el.textContent = `${done}/${list.length}`;
+        });
+      }
+
+      function applyAll() {
+        document.querySelectorAll("[data-id]").forEach((el) => {
+          el.setAttribute("data-status", statusOf(el.getAttribute("data-id")));
+        });
+        renderProgress();
+      }
+
+      document.addEventListener("click", (e) => {
+        const el = e.target.closest("[data-id]");
+        if (el) cycle(el.getAttribute("data-id"), 1);
+      });
+      document.addEventListener("contextmenu", (e) => {
+        const el = e.target.closest("[data-id]");
+        if (el) {
+          e.preventDefault();
+          cycle(el.getAttribute("data-id"), -1);
+        }
+      });
+      const resetBtn = document.querySelector("#reset");
+      if (resetBtn)
+        resetBtn.addEventListener("click", () => {
+          if (confirm("¿Reiniciar todo el progreso?")) {
+            state = {};
+            save();
+            applyAll();
+          }
+        });
+
+      applyAll();
+    </script>
+
+    <style is:global>
+      :root {
+        --bg: #f3f4f7;
+        --panel: #ffffff;
+        --ink-1: #1b1e24;
+        --ink-2: #5b6270;
+        --line: #e4e6ea;
+        --radius: 14px;
+        --shadow: 0 1px 2px rgba(20, 24, 34, 0.06),
+          0 8px 24px rgba(20, 24, 34, 0.06);
+
+        /* Colores de ESTADO (independientes del bloque) */
+        --st-pendiente: #9aa0ab;
+        --st-planeada: #e6a417;
+        --st-planeada-ink: #a06f0a;
+        --st-en_curso: #2f6fd0;
+        --st-completada: #1f9d57;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(
+            1200px 600px at 100% -10%,
+            #eef1f7 0%,
+            transparent 60%
+          ),
+          var(--bg);
+        color: var(--ink-1);
+        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica,
+          Arial, sans-serif;
+        line-height: 1.35;
+      }
+
+      .app {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px 20px 48px;
+      }
+
+      /* ---------- Guard móvil (solo escritorio) ---------- */
+      .mobile-gate {
+        display: none;
+      }
+      html.is-mobile .app {
+        display: none;
+      }
+      html.is-mobile .mobile-gate {
+        display: flex;
+        min-height: 100vh;
+        min-height: 100dvh;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .gate-card {
+        text-align: center;
+        max-width: 340px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 34px 26px;
+        box-shadow: var(--shadow);
+      }
+      .gate-card .brand-badge {
+        margin: 0 auto 16px;
+      }
+      .gate-card h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .gate-title {
+        margin: 12px 0 8px;
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .gate-sub {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 13.5px;
+        line-height: 1.55;
+      }
+      /* Respaldo sin JS: bloquea pantallas muy angostas */
+      @media (max-width: 640px) {
+        .app {
+          display: none;
+        }
+        .mobile-gate {
+          display: flex;
+          min-height: 100vh;
+          min-height: 100dvh;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+      }
+
+      /* ---------- Topbar ---------- */
+      .topbar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 28px;
+        align-items: center;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 22px;
+        box-shadow: var(--shadow);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .brand-badge {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        background: #1b1e24;
+        color: #fff;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        font-size: 18px;
+      }
+      .brand-text h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.2px;
+      }
+      .brand-text p {
+        margin: 2px 0 0;
+        color: var(--ink-2);
+        font-size: 13px;
+      }
+
+      .progress-wrap {
+        min-width: 220px;
+      }
+      .progress-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .progress-label {
+        font-size: 13px;
+        color: var(--ink-2);
+        font-weight: 600;
+      }
+      .progress-pct {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .bar-track {
+        margin: 8px 0 6px;
+        height: 12px;
+        border-radius: 999px;
+        background: #e9ebf0;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #2f5c9e, #27a9e1 60%, #8cc63e);
+        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .progress-sub {
+        font-size: 12.5px;
+        color: var(--ink-2);
+      }
+      .progress-sub b {
+        color: var(--ink-1);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(72px, 1fr));
+        gap: 10px;
+      }
+      .stat {
+        text-align: center;
+        padding: 8px 6px;
+        border-radius: 12px;
+        background: #f7f8fa;
+        border: 1px solid var(--line);
+        min-width: 72px;
+      }
+      .stat b {
+        display: block;
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .stat span {
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+      .stat.s-completada b {
+        color: var(--st-completada);
+      }
+      .stat.s-en_curso b {
+        color: var(--st-en_curso);
+      }
+      .stat.s-planeada b {
+        color: var(--st-planeada-ink);
+      }
+      .stat.s-pendiente b {
+        color: var(--st-pendiente);
+      }
+
+      /* ---------- Toolbar ---------- */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        margin: 16px 2px;
+      }
+      .hint {
+        margin: 0;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .hint b {
+        color: var(--ink-1);
+      }
+      .status-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 5px 12px 5px 9px;
+        border-radius: 999px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        color: var(--ink-1);
+      }
+      .chip .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+      }
+      .chip.st-pendiente .dot {
+        background: var(--st-pendiente);
+      }
+      .chip.st-planeada .dot {
+        background: var(--st-planeada);
+      }
+      .chip.st-en_curso .dot {
+        background: var(--st-en_curso);
+      }
+      .chip.st-completada .dot {
+        background: var(--st-completada);
+      }
+      .btn-reset {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-2);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 7px 14px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .btn-reset:hover {
+        color: #e23b3b;
+        border-color: #f3c4c4;
+        background: #fdf2f2;
+      }
+
+      /* ---------- Mapa ---------- */
+      .map-scroll {
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+      .map {
+        min-width: 1160px;
+      }
+      .sem-heads,
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(135px, 1fr));
+        gap: 12px;
+      }
+      .sem-heads {
+        margin-bottom: 12px;
+      }
+      .sem-head {
+        background: #1b1e24;
+        color: #fff;
+        border-radius: 10px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        box-shadow: var(--shadow);
+      }
+      .sem-head span {
+        font-size: 20px;
+        font-weight: 800;
+      }
+      .grid {
+        align-items: start;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* ---------- Tarjeta de materia ---------- */
+      .course {
+        position: relative;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+        border: 1.5px solid transparent;
+        border-radius: 12px;
+        padding: 11px 12px 10px;
+        min-height: 92px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--ink);
+        background: var(--c);
+        box-shadow: 0 1px 2px rgba(20, 24, 34, 0.12);
+        transition: transform 0.12s ease, box-shadow 0.2s ease,
+          background 0.2s ease, border-color 0.2s ease;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .course:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(20, 24, 34, 0.2);
+        z-index: 2;
+      }
+      .course:focus-visible {
+        outline: 3px solid #1b1e24;
+        outline-offset: 2px;
+      }
+      .c-name {
+        font-size: 12.5px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -0.1px;
+        padding-right: 18px;
+      }
+      .c-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px 6px;
+      }
+      .c-meta {
+        font-size: 9.5px;
+        font-weight: 700;
+        opacity: 0.82;
+        white-space: nowrap;
+      }
+
+      /* Etiqueta de ESTADO (texto siempre visible) */
+      .c-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        line-height: 1;
+        padding: 3.5px 8px 3.5px 7px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+      }
+      .c-status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .course[data-status="pendiente"] .c-status {
+        color: #6b7180;
+      }
+      .course[data-status="pendiente"] .c-status::before {
+        background: var(--st-pendiente);
+      }
+      .course[data-status="pendiente"] .c-status::after {
+        content: "Pendiente";
+      }
+      .course[data-status="planeada"] .c-status {
+        color: var(--st-planeada-ink);
+      }
+      .course[data-status="planeada"] .c-status::before {
+        background: var(--st-planeada);
+      }
+      .course[data-status="planeada"] .c-status::after {
+        content: "Planeada";
+      }
+      .course[data-status="en_curso"] .c-status {
+        color: var(--st-en_curso);
+      }
+      .course[data-status="en_curso"] .c-status::before {
+        background: var(--st-en_curso);
+        animation: dotPulse 1.4s ease-in-out infinite;
+      }
+      .course[data-status="en_curso"] .c-status::after {
+        content: "En curso";
+      }
+      .course[data-status="completada"] .c-status {
+        color: var(--st-completada);
+      }
+      .course[data-status="completada"] .c-status::before {
+        background: var(--st-completada);
+      }
+      .course[data-status="completada"] .c-status::after {
+        content: "Completada";
+      }
+      @keyframes dotPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(47, 111, 208, 0.6);
+        }
+        70% {
+          box-shadow: 0 0 0 5px rgba(47, 111, 208, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(47, 111, 208, 0);
+        }
+      }
+
+      /* Badge (glifo) esquina superior derecha */
+      .badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        line-height: 1;
+        background: rgba(255, 255, 255, 0.85);
+        color: var(--ink);
+      }
+      .course[data-status="completada"] .badge::after {
+        content: "✓";
+        font-weight: 900;
+      }
+      .course[data-status="en_curso"] .badge::after {
+        content: "◐";
+      }
+      .course[data-status="planeada"] .badge::after {
+        content: "◔";
+      }
+      .course[data-status="pendiente"] .badge::after {
+        content: "○";
+      }
+
+      /* ======= Tratamiento visual por estado ======= */
+
+      /* PENDIENTE — color pleno del bloque: resalta lo que falta por hacer */
+      .course[data-status="pendiente"] .badge {
+        background: rgba(255, 255, 255, 0.85);
+        color: var(--ink);
+      }
+
+      /* PLANEADA — contorno tipo "fantasma" con franja de color arriba */
+      .course[data-status="planeada"] {
+        background: #ffffff;
+        color: #2a2f37;
+        border: 2px dashed color-mix(in srgb, var(--c) 78%, #8a8d90);
+        box-shadow: 0 1px 2px rgba(20, 24, 34, 0.06);
+        padding-top: 13px;
+      }
+      .course[data-status="planeada"]::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        border-radius: 10px 10px 0 0;
+        background: var(--c);
+      }
+      .course[data-status="planeada"] .badge {
+        background: #fff;
+        color: var(--st-planeada-ink);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+      }
+
+      /* EN CURSO — protagonista: sobresale del mapa + barra "en progreso" */
+      .course[data-status="en_curso"] {
+        transform: scale(1.045);
+        z-index: 3;
+        overflow: hidden;
+        border-color: color-mix(in srgb, var(--c) 60%, #ffffff);
+        box-shadow: 0 10px 26px rgba(20, 24, 34, 0.3),
+          0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent);
+        animation: glow 1.8s ease-in-out infinite;
+      }
+      .course[data-status="en_curso"]:hover {
+        transform: scale(1.06) translateY(-2px);
+      }
+      .course[data-status="en_curso"] .badge {
+        background: #fff;
+        color: var(--st-en_curso);
+        z-index: 2;
+      }
+      /* barra indeterminada de progreso en el borde superior */
+      .course[data-status="en_curso"]::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 4px;
+        width: 42%;
+        border-radius: 0 4px 4px 0;
+        background: rgba(255, 255, 255, 0.92);
+        animation: loader 1.3s ease-in-out infinite;
+      }
+      @keyframes loader {
+        0% {
+          left: -42%;
+          width: 42%;
+        }
+        50% {
+          width: 58%;
+        }
+        100% {
+          left: 100%;
+          width: 42%;
+        }
+      }
+      @keyframes glow {
+        0%,
+        100% {
+          box-shadow: 0 10px 26px rgba(20, 24, 34, 0.3),
+            0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent);
+        }
+        50% {
+          box-shadow: 0 10px 26px rgba(20, 24, 34, 0.3),
+            0 0 0 7px color-mix(in srgb, var(--c) 28%, transparent);
+        }
+      }
+
+      /* COMPLETADA — apagada y 'palomeada': ya está hecha, no compite por atención */
+      .course[data-status="completada"] {
+        background: color-mix(in srgb, var(--c) 15%, #eceef1);
+        color: #6b7180;
+        border-color: color-mix(in srgb, var(--c) 22%, #e4e6ea);
+        box-shadow: none;
+        opacity: 0.94;
+      }
+      .course[data-status="completada"] .c-name {
+        color: #737985;
+        text-decoration: line-through;
+        text-decoration-color: rgba(115, 121, 133, 0.5);
+        text-decoration-thickness: 1.5px;
+      }
+      .course[data-status="completada"] .c-meta {
+        opacity: 0.7;
+      }
+      .course[data-status="completada"] .badge {
+        background: var(--st-completada);
+        color: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+      }
+
+      .course--extra {
+        min-height: 74px;
+      }
+
+      /* ---------- Tracks (inglés / extra) ---------- */
+      .track {
+        margin-top: 14px;
+      }
+      .track-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink-2);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin: 2px 2px 8px;
+      }
+
+      /* ---------- Leyenda de bloques ---------- */
+      .blocks {
+        margin-top: 26px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 22px;
+        box-shadow: var(--shadow);
+      }
+      .blocks h2 {
+        margin: 0 0 14px;
+        font-size: 15px;
+      }
+      .blocks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px 20px;
+      }
+      .block-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        flex: none;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+      .block-name {
+        flex: 1;
+      }
+      .block-count {
+        font-weight: 700;
+        color: var(--ink-2);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .foot {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--ink-2);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .course,
+        .course::before,
+        .c-status::before {
+          animation: none !important;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar {
+          grid-template-columns: 1fr;
+          gap: 18px;
+        }
+        .stats {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        .status-legend {
+          margin-left: 0;
+        }
+      }
+    </style>
+  </body>
+</html>
