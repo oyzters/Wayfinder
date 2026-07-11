@@ -24,6 +24,13 @@ npm run preview  # previsualiza el build
 
 - **Clic** en una materia → avanza de estado (Pendiente → Planeada → En curso → Completada).
 - **Clic derecho** → retrocede de estado.
+- **Pasa el cursor** (o enfoca con el teclado) sobre una materia → resalta su
+  **seriación**: en ámbar las materias que _necesitas antes_ (prerrequisitos) y en
+  verde las que _desbloquea_. El resto se atenúa.
+- **Prerrequisitos** (barra superior) → alterna las flechas: `Ocultar`,
+  `Al pasar` (por defecto) o `Siempre` (todas tenues a la vez).
+- **Candado** en una tarjeta → aún no cubres sus prerrequisitos. Es solo
+  informativo; puedes marcarla igual.
 - **Reiniciar** → borra todo el progreso guardado.
 
 ## Estados y colores
@@ -35,8 +42,20 @@ npm run preview  # previsualiza el build
 
 ## Estructura
 
-- `src/data/curriculum.js` — todas las materias, bloques y créditos (única fuente de datos).
-- `src/pages/index.astro` — la interfaz, estilos y la lógica de guardado.
+- `src/data/curriculum.js` — todas las materias, bloques, créditos y la
+  **seriación** (`PREREQS`: prerrequisitos por materia, tal como las flechas del
+  mapa oficial). Única fuente de datos.
+- `src/pages/index.astro` — la interfaz, estilos, el overlay SVG de flechas y la
+  lógica de guardado.
 
 > Los créditos y bloques se transcribieron del PDF del mapa curricular. Si detectas
 > alguna diferencia, edita `src/data/curriculum.js` y se reflejará al instante.
+
+## Licencia
+
+Distribuido bajo la **Licencia MIT**. Puedes usar, copiar, modificar y distribuir
+el software libremente, conservando el aviso de copyright. Consulta el archivo
+[`LICENSE`](./LICENSE) para el texto completo.
+
+© 2026 **Manuel Cortez y Sebastián Escalante (Oyzters)**. Todos los derechos
+reservados.

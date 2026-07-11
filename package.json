@@ -3,6 +3,16 @@
   "type": "module",
   "version": "1.0.0",
   "description": "Seguimiento del mapa curricular de Ingeniería en Software 2023 (ITSON)",
+  "license": "MIT",
+  "author": "Manuel Cortez y Sebastián Escalante (Oyzters)",
+  "contributors": [
+    "Manuel Cortez",
+    "Sebastián Escalante"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oyzters/Wayfinder"
+  },
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",

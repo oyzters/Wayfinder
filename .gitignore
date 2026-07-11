@@ -11,3 +11,5 @@ npm-debug.log*
 .env.production
 # macOS
 .DS_Store
+# source PDF del mapa curricular (referencia, no se versiona)
+mapa_curricular_isw.pdf
