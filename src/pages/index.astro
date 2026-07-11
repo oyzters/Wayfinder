@@ -50,12 +50,10 @@ const statusEntries = Object.entries(STATUSES);
       (function () {
         try {
           var t = localStorage.getItem("wayfinder:theme");
+          // Sin preferencia guardada: siempre modo claro (no se sigue el
+          // ajuste del sistema operativo).
           if (t !== "dark" && t !== "light") {
-            t =
-              window.matchMedia &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches
-                ? "dark"
-                : "light";
+            t = "light";
           }
           document.documentElement.setAttribute("data-theme", t);
         } catch (e) {}
@@ -1143,7 +1141,7 @@ const statusEntries = Object.entries(STATUSES);
       /* Toggle de modo (Ocultar / Al pasar / Siempre) */
       const WIRES_KEY = "wayfinder:wires";
       function setWiresMode(mode) {
-        if (!["off", "hover", "always"].includes(mode)) mode = "hover";
+        if (!["off", "hover", "always"].includes(mode)) mode = "always";
         mapEl.setAttribute("data-wires", mode);
         try {
           localStorage.setItem(WIRES_KEY, mode);
@@ -1169,9 +1167,9 @@ const statusEntries = Object.entries(STATUSES);
       if (document.fonts && document.fonts.ready)
         document.fonts.ready.then(scheduleWireLayout);
 
-      let savedMode = "hover";
+      let savedMode = "always";
       try {
-        savedMode = localStorage.getItem(WIRES_KEY) || "hover";
+        savedMode = localStorage.getItem(WIRES_KEY) || "always";
       } catch {}
       setWiresMode(savedMode);
 
