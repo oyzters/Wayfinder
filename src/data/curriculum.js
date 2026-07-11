@@ -1,4 +1,7 @@
-// Mapa curricular — Ingeniero en Software 2023 (ITSON)
+// Wayfinder — Mapa curricular Ingeniero en Software 2023 (ITSON)
+// Copyright (c) 2026 Manuel Cortez y Sebastián Escalante (Oyzters)
+// SPDX-License-Identifier: MIT  ·  Ver archivo LICENSE en la raíz del proyecto.
+//
 // Fuente: "Mapa IngenieriaSoftware 2023.pdf"
 //
 // Cada materia pertenece a un BLOQUE (color) y a un SEMESTRE.
@@ -128,3 +131,82 @@ export const ALL_COURSES = [
   ...ENGLISH,
   ...EXTRACURRICULARES,
 ];
+
+/**
+ * Seriación / orden bloqueante (prerrequisitos).
+ * PREREQS[materiaId] = [idPrerrequisito, ...]  → "para cursar X necesitas antes…"
+ * Transcrito de las flechas del mapa curricular oficial (mapa_curricular_isw.pdf).
+ * Las materias sin entrada aquí no tienen prerrequisito.
+ */
+export const PREREQS = {
+  // Ciencias básicas / matemáticas
+  "calculo": ["precalculo"],
+  "algebra-lineal": ["precalculo"],
+  "matematicas-computacionales": ["matematicas-discretas"],
+  "metodos-numericos-computacionales": ["algebra-lineal"],
+  "analisis-algoritmos": ["estructura-datos"],
+  "estadistica-inferencial": ["probabilidad-estadistica"],
+
+  // Formación general / admin
+  "tecnologia-empresa": ["introduccion-ingenieria-software"],
+  "seguridad-informatica": ["redes"],
+  "administracion-proyectos-software": ["administracion-proyectos"],
+  "calidad-software": ["administracion-proyectos-software"],
+  "business-strategy-technology": ["innovacion-tecnologica"],
+  "metodos-agiles-desarrollo": [
+    "innovacion-tecnologica",
+    "administracion-proyectos-software",
+  ],
+  "evaluacion-software": ["calidad-software"],
+
+  // Construcción
+  "sistemas-operativos-arquitectura": ["programacion-1"],
+  "programacion-2": ["programacion-1"],
+  "programacion-3": ["programacion-2"],
+  "estructura-datos": ["matematicas-discretas", "programacion-2"],
+  "bases-datos": ["programacion-1"],
+  "bases-datos-avanzadas": ["bases-datos", "programacion-3"],
+  "redes": ["sistemas-operativos-arquitectura"],
+  "aplicaciones-web": [
+    "programacion-3",
+    "bases-datos-avanzadas",
+    "diseno-software",
+  ],
+  "aplicaciones-moviles": ["aplicaciones-web"],
+  "sistemas-distribuidos": ["aplicaciones-web"],
+
+  // Diseño
+  "modelado-procesos": ["tecnologia-empresa"],
+  "diseno-software": ["programacion-3"],
+  "diseno-sistemas-interactivos": ["modelado-procesos"],
+  "arquitectura-software": ["redes", "programacion-3", "diseno-software"],
+  "ingenieria-requisitos": ["modelado-procesos"],
+  "proyecto-software-integrador": [
+    "ingenieria-requisitos",
+    "arquitectura-software",
+    "aplicaciones-web",
+  ],
+  "pruebas-software": ["ingenieria-requisitos"],
+  "seminario-titulacion": ["proyecto-software-integrador"],
+
+  // Práctica profesional
+  "practica-profesional": ["proyecto-software-integrador"],
+
+  // Inglés universitario (cadena secuencial)
+  "ingles-a1": ["ingles-introductorio"],
+  "ingles-a2": ["ingles-a1"],
+  "ingles-b1-1": ["ingles-a2"],
+  "ingles-b1-2": ["ingles-b1-1"],
+  "ingles-b1-3": ["ingles-b1-2"],
+};
+
+/** Aristas dirigidas [origen, destino] derivadas de PREREQS. */
+export const PREREQ_EDGES = Object.entries(PREREQS).flatMap(([to, list]) =>
+  (list || []).map((from) => [from, to])
+);
+
+/** UNLOCKS[materiaId] = [idQueSeHabilita, ...]  → "al aprobar X puedes cursar…" */
+export const UNLOCKS = PREREQ_EDGES.reduce((acc, [from, to]) => {
+  (acc[from] ||= []).push(to);
+  return acc;
+}, {});

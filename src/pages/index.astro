@@ -1,4 +1,7 @@
 ---
+// Wayfinder — Seguimiento del mapa curricular Ingeniero en Software 2023 (ITSON)
+// Copyright (c) 2026 Manuel Cortez y Sebastián Escalante (Oyzters)
+// SPDX-License-Identifier: MIT · Ver archivo LICENSE en la raíz del proyecto.
 import {
   BLOCKS,
   STATUSES,
@@ -41,6 +44,20 @@ const statusEntries = Object.entries(STATUSES);
             window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
           if (mobileUA || coarse)
             document.documentElement.classList.add("is-mobile");
+        } catch (e) {}
+      })();
+      // Tema: aplica antes de pintar para evitar parpadeo (FOUC).
+      (function () {
+        try {
+          var t = localStorage.getItem("wayfinder:theme");
+          if (t !== "dark" && t !== "light") {
+            t =
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
         } catch (e) {}
       })();
     </script>
@@ -88,6 +105,26 @@ const statusEntries = Object.entries(STATUSES);
           <div class="stat s-pendiente"><b id="n-pendiente">0</b><span>Pendientes</span></div>
         </div>
 
+        <button
+          class="theme-toggle"
+          id="theme-toggle"
+          type="button"
+          role="switch"
+          aria-checked="false"
+          aria-label="Cambiar entre modo claro y oscuro"
+          title="Modo claro / oscuro"
+        >
+          <span class="tt-track">
+            <svg class="tt-ic tt-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+            </svg>
+            <svg class="tt-ic tt-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            </svg>
+            <span class="tt-thumb"></span>
+          </span>
+        </button>
+
         <a
           class="repo-link"
           href="https://github.com/oyzters/Wayfinder"
@@ -112,22 +149,32 @@ const statusEntries = Object.entries(STATUSES);
             <span class={`chip st-${key}`}><i class="dot"></i>{s.label}</span>
           ))}
         </div>
+        <div class="wires-toggle" role="group" aria-label="Flechas de seriación">
+          <span class="wt-label">Prerrequisitos</span>
+          <button class="wt-opt" data-wires-mode="always" type="button">Siempre</button>
+          <button class="wt-opt" data-wires-mode="hover" type="button">Al pasar</button>
+          <button class="wt-opt" data-wires-mode="off" type="button">Ocultar</button>
+        </div>
         <button class="btn-reset" id="reset" type="button">Reiniciar</button>
         <button class="btn-share" id="share" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 2 8 6h3v8h2V6h3l-4-4zM4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8h-2v8H6v-8H4z" />
           </svg>
-          Compartir
+          <span>Compartir</span>
         </button>
       </div>
 
       <!-- Mapa curricular -->
       <div class="map-scroll">
-        <div class="map">
+        <div class="map" data-wires="hover">
+          <!-- Capa de flechas de seriación (prerrequisitos).
+               Capas (halo/línea/cabeza) se crean por JS. -->
+          <svg class="wires" aria-hidden="true" fill="none"></svg>
+
           <!-- Cabeceras de semestre -->
           <div class="sem-heads">
             {SEMESTERS.map((_, i) => (
-              <div class="sem-head"><span>{i + 1}</span></div>
+              <div class="sem-head" data-sem={i} title="Clic para marcar el semestre"><span>{i + 1}</span></div>
             ))}
           </div>
 
@@ -140,10 +187,14 @@ const statusEntries = Object.entries(STATUSES);
                     class="course"
                     data-id={course.id}
                     data-status="pendiente"
+                    data-block={course.block}
                     style={`--c:${BLOCKS[course.block].color};--ink:${inkFor(course.block)}`}
                     title={`${course.name} — ${BLOCKS[course.block].label}`}
                   >
                     <span class="badge"></span>
+                    <span class="lock" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h8V8a4 4 0 0 0-8 0v2z"/></svg>
+                    </span>
                     <span class="c-name">{course.name}</span>
                     <span class="c-foot">
                       <span class="c-status"></span>
@@ -155,84 +206,78 @@ const statusEntries = Object.entries(STATUSES);
             ))}
           </div>
 
-          <!-- Inglés universitario (sem. 1–6) -->
-          <div class="track">
-            <div class="track-label">Inglés universitario</div>
-            <div class="grid">
-              {SEMESTERS.map((_, i) => {
-                const course = ENGLISH[i];
-                return (
-                  <div class="col">
-                    {course && (
-                      <button
-                        class="course"
-                        data-id={course.id}
-                        data-status="pendiente"
-                        style={`--c:${BLOCKS.ingles.color};--ink:#ffffff`}
-                        title={`${course.name} — Inglés universitario`}
-                      >
-                        <span class="badge"></span>
-                        <span class="c-name">{course.name}</span>
-                        <span class="c-foot">
-                          <span class="c-status"></span>
-                          <span class="c-meta">{metaText(course)}</span>
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <!-- Zona inferior: Inglés + Extracurriculares (izq) y leyenda (der),
+               al estilo del mapa oficial: aprovecha el hueco inferior derecho. -->
+          <div class="map-bottom">
+            <div class="mb-label mb-label--ing">Inglés universitario</div>
+            {ENGLISH.map((course, i) => (
+              <button
+                class="course mb-ing"
+                data-id={course.id}
+                data-status="pendiente"
+                data-block="ingles"
+                style={`--c:${BLOCKS.ingles.color};--ink:#ffffff;grid-column:${i + 1}/${i + 2};grid-row:2`}
+                title={`${course.name} — Inglés universitario`}
+              >
+                <span class="badge"></span>
+                <span class="lock" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h8V8a4 4 0 0 0-8 0v2z"/></svg>
+                </span>
+                <span class="c-name">{course.name}</span>
+                <span class="c-foot">
+                  <span class="c-status"></span>
+                  <span class="c-meta">{metaText(course)}</span>
+                </span>
+              </button>
+            ))}
+            <div class="mb-label mb-label--extra">Extracurriculares</div>
+            {EXTRACURRICULARES.map((course, j) => (
+              <button
+                class="course course--extra mb-extra"
+                data-id={course.id}
+                data-status="pendiente"
+                data-block={course.block}
+                style={`--c:${BLOCKS[course.block].color};--ink:#23272e;grid-column:${j + 1}/${j + 2};grid-row:4`}
+                title={`${course.name} — Extracurricular`}
+              >
+                <span class="badge"></span>
+                <span class="c-name">{course.name}</span>
+                <span class="c-foot">
+                  <span class="c-status"></span>
+                  <span class="c-meta">{metaText(course)}</span>
+                </span>
+              </button>
+            ))}
 
-          <!-- Extracurriculares -->
-          <div class="track">
-            <div class="track-label">Extracurriculares</div>
-            <div class="grid">
-              {SEMESTERS.map((_, i) => {
-                const course = EXTRACURRICULARES[i];
-                return (
-                  <div class="col">
-                    {course && (
-                      <button
-                        class="course course--extra"
-                        data-id={course.id}
-                        data-status="pendiente"
-                        style={`--c:${BLOCKS[course.block].color};--ink:#23272e`}
-                        title={`${course.name} — Extracurricular`}
-                      >
-                        <span class="badge"></span>
-                        <span class="c-name">{course.name}</span>
-                        <span class="c-foot">
-                          <span class="c-status"></span>
-                          <span class="c-meta">{metaText(course)}</span>
-                        </span>
-                      </button>
-                    )}
+            <!-- Leyenda de bloques (vertical, esquina inferior derecha) -->
+            <section class="blocks">
+              <h2>Bloques del programa</h2>
+              <div class="blocks-grid">
+                {blockEntries.map(([key, b]) => (
+                  <div class="block-item">
+                    <span class="swatch" style={`background:${b.color}`}></span>
+                    <span class="block-name">{b.label}</span>
+                    <span class="block-count" data-block-count={key}>0/0</span>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
       </div>
 
-      <!-- Leyenda de bloques -->
-      <section class="blocks">
-        <h2>Bloques del programa</h2>
-        <div class="blocks-grid">
-          {blockEntries.map(([key, b]) => (
-            <div class="block-item">
-              <span class="swatch" style={`background:${b.color}`}></span>
-              <span class="block-name">{b.label}</span>
-              <span class="block-count" data-block-count={key}>0/0</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <footer class="foot">
         <span>Datos locales · guardado automático en este navegador (localStorage)</span>
+        <span class="foot-legal">
+          © 2026 Manuel Cortez y Sebastián Escalante (Oyzters) ·
+          Licencia
+          <a
+            href="https://github.com/oyzters/Wayfinder/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+          >MIT</a>
+          · Todos los derechos reservados
+        </span>
       </footer>
     </div>
 
@@ -253,9 +298,40 @@ const statusEntries = Object.entries(STATUSES);
       </div>
     </div>
 
+    <!-- Popover flotante de acciones por semestre (clic en el número) -->
+    <div class="sem-pop" id="sem-modal" role="menu" aria-labelledby="sem-title" hidden>
+      <div class="sem-pop-title" id="sem-title">Semestre</div>
+      <button class="sem-pop-opt" id="sem-complete" type="button" role="menuitem">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+        <span>Completar hasta este semestre</span>
+      </button>
+      <button class="sem-pop-opt" id="sem-encurso" type="button" role="menuitem">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+        </svg>
+        <span>Marcar como semestre en curso</span>
+      </button>
+    </div>
+
     <script>
-      import { ALL_COURSES, STATUS_ORDER } from "../data/curriculum.js";
+      import {
+        ALL_COURSES,
+        STATUS_ORDER,
+        PREREQS,
+        PREREQ_EDGES,
+        UNLOCKS,
+        SEMESTERS,
+        ENGLISH,
+        EXTRACURRICULARES,
+      } from "../data/curriculum.js";
       import { toPng } from "html-to-image";
+
+      const nameOf = (id) => {
+        const c = ALL_COURSES.find((x) => x.id === id);
+        return c ? c.name : id;
+      };
 
       const KEY = "wayfinder:v1";
       let state = load();
@@ -319,6 +395,31 @@ const statusEntries = Object.entries(STATUSES);
           const done = list.filter((c) => statusOf(c.id) === "completada").length;
           el.textContent = `${done}/${list.length}`;
         });
+
+        updateLocks();
+        scheduleWireLayout();
+      }
+
+      /* ---------- Candados de prerrequisitos ---------- */
+      function updateLocks() {
+        ALL_COURSES.forEach((course) => {
+          const reqs = PREREQS[course.id] || [];
+          const el = document.querySelector(`[data-id="${course.id}"]`);
+          if (!el) return;
+          const done = statusOf(course.id) === "completada";
+          const missing = reqs.filter((r) => statusOf(r) !== "completada");
+          const locked = !done && missing.length > 0;
+          el.setAttribute("data-locked", locked ? "true" : "false");
+          if (locked) {
+            const list = missing.map(nameOf).join(", ");
+            el.setAttribute(
+              "data-lock-hint",
+              `Faltan prerrequisitos: ${list}`
+            );
+          } else {
+            el.removeAttribute("data-lock-hint");
+          }
+        });
       }
 
       function applyAll() {
@@ -339,14 +440,20 @@ const statusEntries = Object.entries(STATUSES);
           cycle(el.getAttribute("data-id"), -1);
         }
       });
+      // Bloquea el scroll/movimiento del fondo mientras haya un modal abierto.
+      const lockScroll = (on) =>
+        document.documentElement.classList.toggle("modal-open", on);
+
       const resetBtn = document.querySelector("#reset");
       const resetModal = document.querySelector("#reset-modal");
       const closeResetModal = () => {
         if (resetModal) resetModal.hidden = true;
+        lockScroll(false);
       };
       if (resetBtn && resetModal) {
         resetBtn.addEventListener("click", () => {
           resetModal.hidden = false;
+          lockScroll(true);
           const cancel = document.querySelector("#reset-cancel");
           if (cancel) cancel.focus();
         });
@@ -368,6 +475,99 @@ const statusEntries = Object.entries(STATUSES);
           });
       }
 
+      /* ---------- Acciones por semestre (clic derecho en el número) ---------- */
+      function semCourseIds(i) {
+        const ids = (SEMESTERS[i] || []).map((c) => c.id);
+        if (ENGLISH[i]) ids.push(ENGLISH[i].id);
+        if (EXTRACURRICULARES[i]) ids.push(EXTRACURRICULARES[i].id);
+        return ids;
+      }
+      // Marca los semestres 0..upto: todos "completada", salvo el último
+      // (upto) que toma lastStatus.
+      function markSemesters(upto, lastStatus) {
+        for (let i = 0; i <= upto; i++) {
+          const st = i === upto ? lastStatus : "completada";
+          semCourseIds(i).forEach((id) => {
+            state[id] = st;
+          });
+        }
+        save();
+        applyAll();
+      }
+
+      const semModal = document.querySelector("#sem-modal");
+      const semTitle = document.querySelector("#sem-title");
+      let semTarget = null;
+      const closeSemModal = () => {
+        if (semModal) semModal.hidden = true;
+      };
+      // Coloca el popover cerca del número clicado, sin salirse de la pantalla.
+      function positionSemPop(head) {
+        const r = head.getBoundingClientRect();
+        semModal.style.visibility = "hidden";
+        semModal.hidden = false;
+        const pw = semModal.offsetWidth;
+        const ph = semModal.offsetHeight;
+        const gap = 8;
+        let left = r.left;
+        let top = r.bottom + gap;
+        if (left + pw > window.innerWidth - 8)
+          left = window.innerWidth - 8 - pw;
+        if (left < 8) left = 8;
+        // Si no cabe abajo, lo abre hacia arriba.
+        if (top + ph > window.innerHeight - 8 && r.top - gap - ph > 8)
+          top = r.top - gap - ph;
+        semModal.style.left = Math.round(left) + "px";
+        semModal.style.top = Math.round(top) + "px";
+        semModal.style.visibility = "";
+      }
+      document.addEventListener("click", (e) => {
+        const head = e.target.closest("[data-sem]");
+        if (!head) return;
+        semTarget = parseInt(head.getAttribute("data-sem"), 10);
+        if (semTitle) semTitle.textContent = "Semestre " + (semTarget + 1);
+        if (semModal) {
+          positionSemPop(head);
+          const b = document.querySelector("#sem-complete");
+          if (b) b.focus();
+        }
+      });
+      if (semModal) {
+        // Clic fuera cierra (ignora el número clicado y el propio popover).
+        document.addEventListener("click", (e) => {
+          if (semModal.hidden) return;
+          if (e.target.closest("[data-sem]")) return;
+          if (semModal.contains(e.target)) return;
+          closeSemModal();
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !semModal.hidden) closeSemModal();
+        });
+        // Cerrar al hacer scroll o redimensionar (comportamiento de combobox).
+        window.addEventListener(
+          "scroll",
+          () => {
+            if (!semModal.hidden) closeSemModal();
+          },
+          true
+        );
+        window.addEventListener("resize", () => {
+          if (!semModal.hidden) closeSemModal();
+        });
+        const comp = document.querySelector("#sem-complete");
+        if (comp)
+          comp.addEventListener("click", () => {
+            if (semTarget != null) markSemesters(semTarget, "completada");
+            closeSemModal();
+          });
+        const enc = document.querySelector("#sem-encurso");
+        if (enc)
+          enc.addEventListener("click", () => {
+            if (semTarget != null) markSemesters(semTarget, "en_curso");
+            closeSemModal();
+          });
+      }
+
       /* ---------- Compartir: exportar el mapa como imagen PNG ---------- */
       const mapEl = document.querySelector(".map");
       const shareBtn = document.querySelector("#share");
@@ -380,7 +580,10 @@ const statusEntries = Object.entries(STATUSES);
         };
         const poster = document.createElement("div");
         poster.className = "poster";
-        poster.style.width = "1216px"; // 1160 mapa + 28*2 padding (box-sizing)
+        // Mismo ancho que el mapa en vivo (para conservar el layout y que las
+        // flechas ya calculadas sigan alineadas).
+        const mapW = Math.round(mapEl.getBoundingClientRect().width);
+        poster.style.width = mapW + 56 + "px"; // mapa + 28*2 padding
 
         const head = document.createElement("div");
         head.className = "poster-head";
@@ -409,17 +612,52 @@ const statusEntries = Object.entries(STATUSES);
           "</b> pend</div></div>";
         poster.appendChild(head);
 
+        // Clon con el MISMO ancho que el mapa en vivo → el svg de flechas (con
+        // coordenadas ya calculadas) sigue alineado con las tarjetas.
         const mapClone = mapEl.cloneNode(true);
-        mapClone.style.width = "1160px";
-        mapClone.style.minWidth = "1160px";
+        mapClone.style.width = mapW + "px";
+        mapClone.style.minWidth = mapW + "px";
+        // Se respeta el modo de flechas actual (Siempre / Al pasar / Ocultar):
+        // data-wires y el overlay se conservan tal cual están en la app. Solo se
+        // limpia el resaltado temporal de hover (por si se exporta con el cursor
+        // encima de una materia).
+        mapClone
+          .querySelectorAll(".is-dim,.is-related,.is-active")
+          .forEach((el) =>
+            el.classList.remove("is-dim", "is-related", "is-active")
+          );
+
         poster.appendChild(mapClone);
 
         const foot = document.createElement("div");
         foot.className = "poster-foot";
-        foot.textContent = "github.com/oyzters/Wayfinder";
+        foot.innerHTML =
+          "github.com/oyzters/Wayfinder<br>" +
+          "© 2026 Manuel Cortez y Sebastián Escalante (Oyzters) · Licencia MIT";
         poster.appendChild(foot);
 
         return poster;
+      }
+
+      // Copia las flechas (svg) computadas del documento dado como estilo en
+      // línea (html-to-image no aplica CSS a elementos SVG).
+      function inlineWireStyles(poster, win) {
+        const wires = poster.querySelector(".wires");
+        if (!wires) return;
+        const props = [
+          "display", "opacity", "fill", "stroke", "stroke-width",
+          "stroke-linecap", "stroke-linejoin", "paint-order",
+        ];
+        const els = [wires, ...wires.querySelectorAll("*")];
+        for (const el of els) {
+          const cs = win.getComputedStyle(el);
+          let s = el.getAttribute("style") || "";
+          for (const p of props) {
+            const v = cs.getPropertyValue(p);
+            if (v) s += `${p}:${v};`;
+          }
+          el.setAttribute("style", s);
+        }
       }
 
       async function exportImage() {
@@ -429,8 +667,25 @@ const statusEntries = Object.entries(STATUSES);
         label.textContent = "Generando…";
         shareBtn.disabled = true;
 
-        // El póster va dentro de un contenedor oculto (el desfase va en el
-        // contenedor, NO en el póster, para que se capture completo).
+        const root = document.documentElement;
+        const prevTheme = root.getAttribute("data-theme");
+
+        // La imagen SIEMPRE se exporta en modo claro. Para que la app visible NO
+        // parpadee al cambiar de tema, cubrimos la pantalla con un velo opaco del
+        // color del tema ACTUAL: el cambio a claro ocurre detrás del velo.
+        const cs0 = getComputedStyle(root);
+        const curBg = cs0.getPropertyValue("--bg").trim() || "#0f1217";
+        const curInk = cs0.getPropertyValue("--ink-2").trim() || "#8a92a0";
+        const cover = document.createElement("div");
+        cover.style.cssText =
+          "position:fixed;inset:0;z-index:9999;display:grid;place-items:center;" +
+          `background:${curBg};color:${curInk};` +
+          "font:600 14px 'Segoe UI',system-ui,sans-serif;";
+        cover.textContent = "Generando imagen…";
+        document.body.appendChild(cover);
+
+        root.setAttribute("data-theme", "light");
+
         const holder = document.createElement("div");
         holder.style.cssText = "position:fixed;left:-100000px;top:0;";
         const poster = buildPoster();
@@ -439,9 +694,15 @@ const statusEntries = Object.entries(STATUSES);
 
         try {
           if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          void poster.offsetHeight;
+          // Inline de estilos de flechas (el doc ya está en claro).
+          inlineWireStyles(poster, window);
+
+          const bg =
+            getComputedStyle(root).getPropertyValue("--bg").trim() || "#ffffff";
           const opts = {
             pixelRatio: 2,
-            backgroundColor: "#ffffff",
+            backgroundColor: bg,
             cacheBust: true,
             width: poster.offsetWidth,
             height: poster.offsetHeight,
@@ -467,12 +728,479 @@ const statusEntries = Object.entries(STATUSES);
           alert("No se pudo generar la imagen. Intenta de nuevo.");
         } finally {
           holder.remove();
+          // Restaurar el tema del usuario ANTES de quitar el velo.
+          if (prevTheme === null) root.removeAttribute("data-theme");
+          else root.setAttribute("data-theme", prevTheme);
+          cover.remove();
           shareBtn.disabled = false;
           label.textContent = prev;
         }
       }
 
+      /* ---------- Flechas de seriación (overlay SVG) ---------- */
+      const svg = document.querySelector(".wires");
+      const SVGNS = "http://www.w3.org/2000/svg";
+      let activeId = null;
+      let wireRAF = 0;
+
+      // Tres capas apiladas: halos (abajo), líneas (medio), cabezas (arriba).
+      // Así los semicírculos siempre quedan por encima de cualquier línea.
+      const mkLayer = () => {
+        const g = document.createElementNS(SVGNS, "g");
+        svg.appendChild(g);
+        return g;
+      };
+      const layerHalo = mkLayer();
+      const layerLine = mkLayer();
+      const layerHead = mkLayer();
+
+      const wireEls = PREREQ_EDGES.map(([from, to], i) => {
+        const cg = i % 5; // color inicial; layoutWires lo recolorea por conflictos
+        const halo = document.createElementNS(SVGNS, "path");
+        halo.setAttribute("class", "wire-halo");
+        const line = document.createElementNS(SVGNS, "path");
+        line.setAttribute("class", "wire-line");
+        const head = document.createElementNS(SVGNS, "path");
+        head.setAttribute("class", "wire-head");
+        layerHalo.appendChild(halo);
+        layerLine.appendChild(line);
+        layerHead.appendChild(head);
+        return { from, to, cg, halo, line, head };
+      });
+
+      // Reparte el punto de anclaje a lo largo del borde de la card cuando
+      // varias flechas comparten origen (o destino).
+      function anchorY(r, n, i) {
+        if (n <= 1) return r.cy;
+        const band = Math.min(r.h * 0.6, (n - 1) * 16);
+        return r.cy - band / 2 + (band * i) / (n - 1);
+      }
+
+      // Polilínea ortogonal con esquinas redondeadas a partir de puntos.
+      function roundedPath(pts, r) {
+        const p = [];
+        for (const q of pts) {
+          const last = p[p.length - 1];
+          if (!last || Math.abs(last.x - q.x) > 0.5 || Math.abs(last.y - q.y) > 0.5)
+            p.push(q);
+        }
+        if (p.length < 2) return "";
+        const f = (n) => n.toFixed(1);
+        let d = `M ${f(p[0].x)} ${f(p[0].y)}`;
+        for (let i = 1; i < p.length - 1; i++) {
+          const a = p[i - 1];
+          const c = p[i];
+          const b = p[i + 1];
+          const d1 = Math.hypot(c.x - a.x, c.y - a.y) || 1;
+          const d2 = Math.hypot(b.x - c.x, b.y - c.y) || 1;
+          const rr = Math.max(0, Math.min(r, d1 / 2, d2 / 2));
+          const c1 = { x: c.x + ((a.x - c.x) / d1) * rr, y: c.y + ((a.y - c.y) / d1) * rr };
+          const c2 = { x: c.x + ((b.x - c.x) / d2) * rr, y: c.y + ((b.y - c.y) / d2) * rr };
+          d += ` L ${f(c1.x)} ${f(c1.y)} Q ${f(c.x)} ${f(c.y)} ${f(c2.x)} ${f(c2.y)}`;
+        }
+        const last = p[p.length - 1];
+        d += ` L ${f(last.x)} ${f(last.y)}`;
+        return d;
+      }
+
+      // Semicírculo (punta) con el lado curvo rozando el borde del destino.
+      function headPath(tx, ty, R) {
+        return `M ${tx - R} ${ty - R} A ${R} ${R} 0 0 1 ${tx - R} ${ty + R} Z`;
+      }
+
+      // Distancia punto-segmento y segmento-segmento (para detectar cruces).
+      function ptSeg(p, a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const l2 = dx * dx + dy * dy || 1;
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+      }
+      function segCross(a, b, c, d) {
+        const o = (p, q, r) =>
+          Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+        return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
+      }
+      function segDist(a, b, c, d) {
+        if (segCross(a, b, c, d)) return 0;
+        return Math.min(ptSeg(a, c, d), ptSeg(b, c, d), ptSeg(c, a, b), ptSeg(d, a, b));
+      }
+      const spanOverlap = (a, b) => a[1] > b[0] + 1 && b[1] > a[0] + 1;
+
+      function layoutWires() {
+        wireRAF = 0;
+        if (!svg || !mapEl) return;
+        const m = mapEl.getBoundingClientRect();
+        svg.setAttribute("width", m.width);
+        svg.setAttribute("height", m.height);
+
+        const rect = {};
+        document.querySelectorAll("[data-id]").forEach((el) => {
+          const b = el.getBoundingClientRect();
+          rect[el.getAttribute("data-id")] = {
+            left: b.left - m.left,
+            right: b.right - m.left,
+            top: b.top - m.top,
+            cy: b.top + b.height / 2 - m.top,
+            h: b.height,
+          };
+        });
+
+        // --- Geometría de la rejilla (para rutear por los canales/gutters) ---
+        const grids = document.querySelectorAll(".grid");
+        const cols = [...grids[0].querySelectorAll(".col")].map((c) => {
+          const b = c.getBoundingClientRect();
+          return { left: b.left - m.left, right: b.right - m.left };
+        });
+        const vChan = []; // vChan[i] = x del gutter a la derecha de la col i
+        for (let i = 0; i < cols.length - 1; i++)
+          vChan[i] = (cols[i].right + cols[i + 1].left) / 2;
+        const colOf = (x) => {
+          let best = 0;
+          let bd = Infinity;
+          for (let i = 0; i < cols.length; i++) {
+            const dd = Math.abs(cols[i].left - x);
+            if (dd < bd) {
+              bd = dd;
+              best = i;
+            }
+          }
+          return best;
+        };
+        const mainCards = [...grids[0].querySelectorAll(".course")];
+        const tops = [
+          ...new Set(mainCards.map((c) => Math.round(c.getBoundingClientRect().top - m.top))),
+        ].sort((a, b) => a - b);
+        const H = mainCards.length ? mainCards[0].getBoundingClientRect().height : 130;
+        const GAP = tops.length > 1 ? tops[1] - tops[0] - H : 12;
+        const rowTopNear = (cy) => {
+          let best = tops[0] || 0;
+          let bd = Infinity;
+          for (const t of tops) {
+            const dd = Math.abs(t + H / 2 - cy);
+            if (dd < bd) {
+              bd = dd;
+              best = t;
+            }
+          }
+          return best;
+        };
+
+        // Anclas repartidas por origen/destino.
+        const outG = {};
+        const inG = {};
+        wireEls.forEach((w) => {
+          if (!rect[w.from] || !rect[w.to]) return;
+          (outG[w.from] || (outG[w.from] = [])).push(w);
+          (inG[w.to] || (inG[w.to] = [])).push(w);
+        });
+        const anchorS = new Map();
+        const anchorT = new Map();
+        Object.keys(outG).forEach((src) => {
+          const arr = outG[src].sort((a, b) => rect[a.to].cy - rect[b.to].cy);
+          arr.forEach((w, i) => anchorS.set(w, anchorY(rect[src], arr.length, i)));
+        });
+        Object.keys(inG).forEach((tg) => {
+          const arr = inG[tg].sort((a, b) => rect[a.from].cy - rect[b.from].cy);
+          arr.forEach((w, i) => anchorT.set(w, anchorY(rect[tg], arr.length, i)));
+        });
+
+        // Mismas dimensiones en ambos modos ("Al pasar" idéntico a "Siempre").
+        const R = 3.5; // radio del semicírculo (punta)
+        const CR = 5; // radio de esquina
+
+        // ---- Pasada 1: plan de ruta (canales base, sin carriles) ----
+        const push = (obj, k, v) => (obj[k] || (obj[k] = [])).push(v);
+        const plans = [];
+        const vMembers = {}; // canal vertical (x) -> miembros
+        const hMembers = {}; // canal horizontal (y) -> miembros
+        wireEls.forEach((w) => {
+          const rf = rect[w.from];
+          const rt = rect[w.to];
+          if (!rf || !rt) return;
+          const sX = rf.right;
+          const sY = anchorS.get(w);
+          const tX = rt.left;
+          const tY = anchorT.get(w);
+          const plan = { w, sX, sY, tX, tY, exLine: tX - 3 };
+          const sCol = colOf(rf.left);
+          const tCol = colOf(rt.left);
+          if (tCol <= sCol) {
+            plan.type = "fallback";
+          } else if (Math.abs(vChan[sCol] - vChan[tCol - 1]) < 1) {
+            plan.type = "adj";
+            plan.vx = vChan[sCol];
+            plan.midY = (sY + tY) / 2;
+            plan.vSpan = [Math.min(sY, tY), Math.max(sY, tY)];
+            push(vMembers, Math.round(plan.vx), { plan, kind: "v" });
+          } else {
+            plan.type = "full";
+            plan.vs = vChan[sCol];
+            plan.vt = vChan[tCol - 1];
+            const above = sY <= tY;
+            const tr = rowTopNear(tY);
+            plan.hyBase = above ? tr - GAP / 2 : tr + H + GAP / 2;
+            plan.hSpan = [Math.min(plan.vs, plan.vt), Math.max(plan.vs, plan.vt)];
+            push(vMembers, Math.round(plan.vs), {
+              plan, kind: "vs", span: [Math.min(sY, plan.hyBase), Math.max(sY, plan.hyBase)],
+            });
+            push(vMembers, Math.round(plan.vt), {
+              plan, kind: "vt", span: [Math.min(tY, plan.hyBase), Math.max(tY, plan.hyBase)],
+            });
+            push(hMembers, Math.round(plan.hyBase), { plan, kind: "h" });
+          }
+          plans.push(plan);
+        });
+
+        // ---- Reparto homogéneo de carriles (centrado y equidistante) ----
+        const memY = (mem) =>
+          mem.kind === "vt" ? mem.plan.tY : mem.kind === "vs" ? mem.plan.sY : mem.plan.midY;
+        const setOff = (mem, off) => {
+          if (mem.kind === "v") mem.plan.vOff = off;
+          else if (mem.kind === "vs") mem.plan.vsOff = off;
+          else if (mem.kind === "vt") mem.plan.vtOff = off;
+          else mem.plan.hOff = off;
+        };
+        const assign = (members, maxSpan, base, orderBy) => {
+          Object.values(members).forEach((list) => {
+            list.sort((a, b) => orderBy(a) - orderBy(b));
+            const n = list.length;
+            const s = n > 1 ? Math.min(base, maxSpan / (n - 1)) : 0;
+            list.forEach((mem, i) => setOff(mem, (i - (n - 1) / 2) * s));
+          });
+        };
+        assign(vMembers, 24, 6, memY); // canal vertical (gutter ancho)
+        assign(hMembers, 8, 3, (mem) => mem.plan.sX); // canal horizontal (angosto)
+
+        // ---- Pasada 2: puntos con carriles aplicados ----
+        plans.forEach((plan) => {
+          const { sX, sY, tX, tY, exLine } = plan;
+          if (plan.type === "fallback") {
+            plan.pts = [{ x: sX, y: sY }, { x: exLine, y: tY }];
+          } else if (plan.type === "adj") {
+            const gx = plan.vx + (plan.vOff || 0);
+            plan.pts = [
+              { x: sX, y: sY }, { x: gx, y: sY }, { x: gx, y: tY }, { x: exLine, y: tY },
+            ];
+          } else {
+            const vsx = plan.vs + (plan.vsOff || 0);
+            const vtx = plan.vt + (plan.vtOff || 0);
+            const hy = plan.hyBase + (plan.hOff || 0);
+            plan.pts = [
+              { x: sX, y: sY }, { x: vsx, y: sY }, { x: vsx, y: hy },
+              { x: vtx, y: hy }, { x: vtx, y: tY }, { x: exLine, y: tY },
+            ];
+          }
+          plan.segs = [];
+          for (let i = 0; i < plan.pts.length - 1; i++)
+            plan.segs.push([plan.pts[i], plan.pts[i + 1]]);
+        });
+
+        // ---- Grafo de conflictos: se cruzan o se tocan → distinto color ----
+        plans.forEach((p) => (p.adj = new Set()));
+        const conf = (a, b) => {
+          a.adj.add(b);
+          b.adj.add(a);
+        };
+        // (a) co-miembros del mismo canal cuyos tramos se solapan (van pegados)
+        const coMembers = (members, spanOf) => {
+          Object.values(members).forEach((list) => {
+            for (let i = 0; i < list.length; i++)
+              for (let j = i + 1; j < list.length; j++)
+                if (
+                  list[i].plan !== list[j].plan &&
+                  spanOverlap(spanOf(list[i]), spanOf(list[j]))
+                )
+                  conf(list[i].plan, list[j].plan);
+          });
+        };
+        coMembers(vMembers, (m) => m.span || m.plan.vSpan);
+        coMembers(hMembers, (m) => m.plan.hSpan);
+        // (b) cruces geométricos (perpendiculares en distinto canal)
+        for (let i = 0; i < plans.length; i++)
+          for (let j = i + 1; j < plans.length; j++) {
+            const a = plans[i];
+            const b = plans[j];
+            if (a.adj.has(b)) continue;
+            let hit = false;
+            for (const s1 of a.segs)
+              for (const s2 of b.segs)
+                if (segDist(s1[0], s1[1], s2[0], s2[1]) <= 2.5) { hit = true; break; }
+            if (hit) conf(a, b);
+          }
+
+        // greedy: color preferido = índice%5, evitando el de vecinos ya fijados
+        const NC = 5;
+        plans.forEach((p, i) => {
+          const used = new Set();
+          p.adj.forEach((q) => q.cgTmp != null && used.add(q.cgTmp));
+          let c = i % NC;
+          if (used.has(c)) {
+            c = 0;
+            while (c < NC && used.has(c)) c++;
+            if (c >= NC) c = i % NC;
+          }
+          p.cgTmp = c;
+        });
+
+        // ---- Render ----
+        plans.forEach((plan) => {
+          const w = plan.w;
+          w.cg = plan.cgTmp;
+          const haloPts = plan.pts.map((p) => ({ x: p.x, y: p.y }));
+          const li = haloPts.length - 1;
+          const hx = plan.tX - 13;
+          if (hx > haloPts[li - 1].x + 1) haloPts[li] = { x: hx, y: plan.tY };
+          else haloPts.pop();
+          w.line.setAttribute("d", roundedPath(plan.pts, CR));
+          w.halo.setAttribute("d", roundedPath(haloPts, CR));
+          w.head.setAttribute("d", headPath(plan.tX, plan.tY, R));
+        });
+        wireEls.forEach((w) => {
+          if (!rect[w.from] || !rect[w.to]) {
+            w.halo.removeAttribute("d");
+            w.line.removeAttribute("d");
+            w.head.removeAttribute("d");
+          }
+        });
+
+        paintWires();
+      }
+
+      function scheduleWireLayout() {
+        if (wireRAF) return;
+        wireRAF = requestAnimationFrame(layoutWires);
+      }
+
+      function paintWires() {
+        wireEls.forEach(({ from, to, cg, halo, line, head }) => {
+          let role = "idle";
+          if (activeId) {
+            if (to === activeId) role = "prereq";
+            else if (from === activeId) role = "unlock";
+            else role = "mute";
+          }
+          const c = " cg" + cg;
+          halo.setAttribute("class", "wire-halo " + role + c);
+          line.setAttribute("class", "wire-line " + role + c);
+          head.setAttribute("class", "wire-head " + role + c);
+        });
+      }
+
+      function setActive(id) {
+        activeId = id;
+        const related = new Set([id]);
+        (PREREQS[id] || []).forEach((r) => related.add(r));
+        (UNLOCKS[id] || []).forEach((u) => related.add(u));
+        document.querySelectorAll("[data-id]").forEach((el) => {
+          const cid = el.getAttribute("data-id");
+          el.classList.toggle("is-related", related.has(cid));
+          el.classList.toggle("is-active", cid === id);
+          el.classList.toggle("is-dim", !related.has(cid));
+        });
+        mapEl.classList.add("wires-focus");
+        paintWires();
+      }
+
+      function clearActive() {
+        activeId = null;
+        document.querySelectorAll("[data-id]").forEach((el) => {
+          el.classList.remove("is-related", "is-active", "is-dim");
+        });
+        mapEl.classList.remove("wires-focus");
+        paintWires();
+      }
+
+      const wiresMode = () => mapEl.getAttribute("data-wires") || "hover";
+
+      // El resaltado/atenuado por hover pertenece SOLO al modo "Al pasar".
+      document.addEventListener("pointerover", (e) => {
+        if (wiresMode() !== "hover") return;
+        const el = e.target.closest("[data-id]");
+        if (el) setActive(el.getAttribute("data-id"));
+      });
+      document.addEventListener("pointerout", (e) => {
+        if (wiresMode() !== "hover") return;
+        const el = e.target.closest("[data-id]");
+        const rel =
+          e.relatedTarget && e.relatedTarget.closest
+            ? e.relatedTarget.closest("[data-id]")
+            : null;
+        if (el && el !== rel && !el.contains(e.relatedTarget)) clearActive();
+      });
+      document.addEventListener("focusin", (e) => {
+        if (wiresMode() !== "hover") return;
+        const el = e.target.closest && e.target.closest("[data-id]");
+        if (el) setActive(el.getAttribute("data-id"));
+      });
+      document.addEventListener("focusout", (e) => {
+        if (wiresMode() !== "hover") return;
+        const el = e.target.closest && e.target.closest("[data-id]");
+        if (el) clearActive();
+      });
+
+      /* Toggle de modo (Ocultar / Al pasar / Siempre) */
+      const WIRES_KEY = "wayfinder:wires";
+      function setWiresMode(mode) {
+        if (!["off", "hover", "always"].includes(mode)) mode = "hover";
+        mapEl.setAttribute("data-wires", mode);
+        try {
+          localStorage.setItem(WIRES_KEY, mode);
+        } catch {}
+        document.querySelectorAll("[data-wires-mode]").forEach((b) => {
+          const on = b.getAttribute("data-wires-mode") === mode;
+          b.classList.toggle("is-on", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        if (mode !== "hover") clearActive();
+        paintWires();
+        scheduleWireLayout();
+      }
+      document.querySelectorAll("[data-wires-mode]").forEach((b) => {
+        b.addEventListener("click", () =>
+          setWiresMode(b.getAttribute("data-wires-mode"))
+        );
+      });
+
+      window.addEventListener("resize", scheduleWireLayout);
+      if (window.ResizeObserver)
+        new ResizeObserver(scheduleWireLayout).observe(mapEl);
+      if (document.fonts && document.fonts.ready)
+        document.fonts.ready.then(scheduleWireLayout);
+
+      let savedMode = "hover";
+      try {
+        savedMode = localStorage.getItem(WIRES_KEY) || "hover";
+      } catch {}
+      setWiresMode(savedMode);
+
+      /* ---------- Tema claro / oscuro ---------- */
+      const THEME_KEY = "wayfinder:theme";
+      const themeBtn = document.querySelector("#theme-toggle");
+      function applyTheme(theme) {
+        const t = theme === "dark" ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+        if (themeBtn) themeBtn.setAttribute("aria-checked", t === "dark" ? "true" : "false");
+        try {
+          localStorage.setItem(THEME_KEY, t);
+        } catch {}
+      }
+      if (themeBtn) {
+        // Sincroniza el estado del botón con el tema ya aplicado en <head>.
+        const current =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "dark"
+            : "light";
+        themeBtn.setAttribute("aria-checked", current === "dark" ? "true" : "false");
+        themeBtn.addEventListener("click", () => {
+          const now = document.documentElement.getAttribute("data-theme");
+          applyTheme(now === "dark" ? "light" : "dark");
+        });
+      }
+
       applyAll();
+      scheduleWireLayout();
     </script>
 
     <style is:global>
@@ -492,6 +1220,308 @@ const statusEntries = Object.entries(STATUSES);
         --st-planeada-ink: #a06f0a;
         --st-en_curso: #2f6fd0;
         --st-completada: #1f9d57;
+
+        /* Flechas de seriación (prerrequisitos) */
+        --wire-prereq: #e39a12; /* ámbar — "necesitas antes" */
+        --wire-unlock: #1f9d57; /* verde — "desbloquea" */
+        --wire-idle: #aab0bd; /* gris — fallback */
+        /* Modo "Siempre": 5 colores para distinguir cruces */
+        --wire-r: #d83b3b; /* rojo */
+        --wire-g: #1f9d57; /* verde */
+        --wire-b: #2b2f36; /* negro */
+        --wire-p: #e0559b; /* rosa */
+        --wire-o: #ef7d22; /* naranja */
+
+        /* Acento (modo oscuro grafito) */
+        --accent: #46acec;
+        --accent-ink: #ffffff;
+
+        /* Superficies derivadas (grafito redefine) */
+        --surface-2: #f7f8fa; /* botones/celdas suaves */
+        --track-bg: #e9ebf0; /* pista de barra de progreso */
+        --plan-bg: #ffffff; /* fondo de tarjeta "planeada" */
+        --plan-ink: #2a2f37;
+        --done-mix: #eceef1; /* base de mezcla "completada" */
+        --wire-halo: #ffffff; /* contorno de flechas */
+        --brand-badge-bg: #1b1e24; /* insignia ISW / sem-heads / botones oscuros */
+      }
+
+      /* ================= MODO OSCURO — grafito ================= */
+      /* ===================================================================
+         MODO OSCURO — ECLIPSE.
+         Base tinta profunda casi-negra azulada, alto contraste. Las tarjetas
+         NO se rellenan de color: son chips oscuros con una BARRA lateral de
+         color + TÍTULO de color. La identidad del bloque se lee como acento,
+         no como bloque macizo. Estética tipo Linear / GitHub. Acento UI:
+         azul eléctrico. Comparte los HUES del tema claro → congruencia.
+         --cd = color del bloque (barra/título); --chip = superficie base.
+         =================================================================== */
+      :root[data-theme="dark"] {
+        --bg: #0f1217;
+        --panel: #171b22;
+        --ink-1: #e7eaf0;
+        --ink-2: #8a92a0;
+        --line: #252b34;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 34px rgba(0, 0, 0, 0.55);
+
+        --accent: #4ca6ff;
+        --accent-ink: #04121f;
+
+        --st-pendiente: #8a92a0;
+        --st-planeada: #e6a417;
+        --st-planeada-ink: #f0b840;
+        --st-en_curso: #4ca6ff;
+        --st-completada: #3ccf86;
+
+        --wire-prereq: #f2b53d;
+        --wire-unlock: #43cf87;
+        --wire-idle: #5a6270;
+        --wire-r: #ff6b6b;
+        --wire-g: #43cf87;
+        --wire-b: #cdd3dd;
+        --wire-p: #f06fb0;
+        --wire-o: #ff9a4d;
+        --wire-halo: #0d1015;
+
+        --surface-2: #1e232b;
+        --track-bg: #20262e;
+        --plan-bg: #171b22;
+        --plan-ink: #e7eaf0;
+        --done-mix: #141920;
+        --chip: #1b212a;
+      }
+      :root[data-theme="dark"] body {
+        background: radial-gradient(
+            1100px 600px at 100% -12%,
+            rgba(76, 166, 255, 0.1) 0%,
+            transparent 58%
+          ),
+          radial-gradient(
+            820px 500px at -6% 4%,
+            rgba(76, 166, 255, 0.05) 0%,
+            transparent 55%
+          ),
+          linear-gradient(180deg, #12161c 0%, #0f1217 46%, #0b0d11 100%);
+      }
+
+      /* ---- Cromo compartido (usa tokens → se adapta a cada concepto) ---- */
+      :root[data-theme="dark"] .brand-badge {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      :root[data-theme="dark"] .sem-head {
+        background: #e7eaf0;
+        color: var(--bg);
+        border: 1px solid #e7eaf0;
+      }
+      :root[data-theme="dark"] .wt-opt.is-on {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      :root[data-theme="dark"] .wt-opt:hover {
+        background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+      }
+      :root[data-theme="dark"] .btn-share {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+      }
+      :root[data-theme="dark"] .btn-share:hover {
+        filter: brightness(1.08);
+      }
+      :root[data-theme="dark"] .repo-link {
+        background: var(--surface-2);
+      }
+      :root[data-theme="dark"] .repo-link:hover {
+        color: var(--ink-1);
+        background: color-mix(in srgb, var(--ink-1) 12%, var(--surface-2));
+        border-color: color-mix(in srgb, var(--ink-1) 20%, var(--line));
+      }
+      :root[data-theme="dark"] .stat {
+        background: var(--surface-2);
+      }
+      :root[data-theme="dark"] .bar-track {
+        background: var(--track-bg);
+      }
+      :root[data-theme="dark"] .bar-fill {
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--accent) 70%, #000),
+          var(--accent) 55%,
+          var(--st-completada)
+        );
+      }
+      :root[data-theme="dark"] .course:focus-visible {
+        outline-color: var(--accent);
+      }
+      :root[data-theme="dark"] .btn-ghost:hover {
+        background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+      }
+      :root[data-theme="dark"] .modal-icon {
+        background: rgba(226, 59, 59, 0.16);
+      }
+      :root[data-theme="dark"] .modal-icon--sem {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+        color: var(--accent);
+      }
+      :root[data-theme="dark"] .course[data-status="planeada"] .badge {
+        background: var(--panel);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      :root[data-theme="dark"] .course[data-status="completada"] {
+        color: var(--ink-2);
+      }
+      :root[data-theme="dark"] .course[data-status="completada"] .c-name {
+        color: var(--ink-2);
+      }
+      :root[data-theme="dark"] .lock {
+        background: color-mix(in srgb, var(--chip) 80%, #000);
+      }
+      :root[data-theme="dark"] .lock svg {
+        fill: #c2c8d2; /* candado más claro en modo oscuro */
+      }
+
+      /* ---- Título de la tarjeta = color del bloque (identidad) ---- */
+      :root[data-theme="dark"] .course[data-status="pendiente"] .c-name,
+      :root[data-theme="dark"] .course[data-status="en_curso"] .c-name {
+        color: var(--cd);
+      }
+      :root[data-theme="dark"] .course[data-status="pendiente"] .c-meta,
+      :root[data-theme="dark"] .course[data-status="en_curso"] .c-meta {
+        color: var(--ink-2);
+        opacity: 1;
+      }
+      /* Badge pequeño teñido con el color del bloque */
+      :root[data-theme="dark"] .course[data-status="pendiente"] .badge,
+      :root[data-theme="dark"] .course[data-status="en_curso"] .badge {
+        background: color-mix(in srgb, var(--cd) 16%, var(--chip));
+        color: var(--cd);
+        box-shadow: inset 0 0 0 1px
+          color-mix(in srgb, var(--cd) 32%, transparent);
+      }
+
+      /* ---- Tarjetas: chip oscuro + barra lateral de color ---- */
+      :root[data-theme="dark"] .course[data-status="pendiente"],
+      :root[data-theme="dark"] .course[data-status="en_curso"] {
+        background: var(--chip);
+        color: var(--ink-1);
+        border-left: 3px solid var(--cd);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+      :root[data-theme="dark"] .course[data-status="en_curso"] {
+        animation: none;
+        border-left-color: var(--cd);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55),
+          0 0 0 2px color-mix(in srgb, var(--cd) 55%, transparent),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      /* ===================================================================
+         COLOR DE BLOQUE (--cd). Mismos hues que el claro → congruencia.
+         Brillos luminosos sobre tinta profunda.
+         =================================================================== */
+      :root[data-theme="dark"] .course[data-block="ciencias_basicas"] {
+        --cd: #c6ccd7; /* gris más claro para mejor lectura en oscuro */
+      }
+      :root[data-theme="dark"] .course[data-block="formacion_general"] {
+        --cd: #46b4ee;
+      }
+      :root[data-theme="dark"] .course[data-block="construccion"] {
+        --cd: #6f9bff;
+      }
+      :root[data-theme="dark"] .course[data-block="diseno"] {
+        --cd: #ff9a4d;
+      }
+      :root[data-theme="dark"] .course[data-block="admin_proyectos"] {
+        --cd: #ffcf47;
+      }
+      :root[data-theme="dark"] .course[data-block="optativa_disciplinar"] {
+        --cd: #43cf87;
+      }
+      :root[data-theme="dark"] .course[data-block="practica_profesional"] {
+        --cd: #a6d95a;
+      }
+      :root[data-theme="dark"] .course[data-block="ingles"] {
+        --cd: #ff6b6b;
+      }
+
+      /* Barra de progreso "en curso": pulso con el acento */
+      :root[data-theme="dark"] .course[data-status="en_curso"] .c-status::before {
+        animation: dotPulseDark 1.4s ease-in-out infinite;
+      }
+      @keyframes dotPulseDark {
+        0% {
+          box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+        }
+        70% {
+          box-shadow: 0 0 0 5px transparent;
+        }
+        100% {
+          box-shadow: 0 0 0 0 transparent;
+        }
+      }
+
+      /* ---------- Switch de tema (topbar) ---------- */
+      .theme-toggle {
+        display: grid;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+      }
+      .tt-track {
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        width: 32px;
+        height: 62px;
+        padding: 8px 0;
+        border-radius: 999px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+      .tt-ic {
+        width: 15px;
+        height: 15px;
+        z-index: 1;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .tt-sun {
+        color: #e6a417;
+      }
+      .tt-moon {
+        color: #7f8590;
+      }
+      .tt-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+        transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+          background 0.2s ease;
+      }
+      .theme-toggle[aria-checked="true"] .tt-thumb {
+        transform: translateY(30px);
+        background: var(--accent);
+      }
+      :root[data-theme="dark"] .tt-track {
+        background: var(--surface-2);
+      }
+      :root[data-theme="dark"] .tt-moon {
+        color: var(--accent);
       }
 
       * {
@@ -499,6 +1529,11 @@ const statusEntries = Object.entries(STATUSES);
       }
       html {
         -webkit-text-size-adjust: 100%;
+      }
+      /* Bloqueo de scroll del fondo con un modal abierto */
+      html.modal-open,
+      html.modal-open body {
+        overflow: hidden;
       }
       body {
         margin: 0;
@@ -580,7 +1615,7 @@ const statusEntries = Object.entries(STATUSES);
       /* ---------- Topbar ---------- */
       .topbar {
         display: grid;
-        grid-template-columns: auto 1fr auto auto;
+        grid-template-columns: auto 1fr auto auto auto;
         gap: 22px;
         align-items: center;
         background: var(--panel);
@@ -777,6 +1812,45 @@ const statusEntries = Object.entries(STATUSES);
       .chip.st-completada .dot {
         background: var(--st-completada);
       }
+
+      /* Toggle de flechas de seriación */
+      .wires-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 4px 3px 10px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+      }
+      .wt-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--ink-2);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-right: 2px;
+      }
+      .wt-opt {
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink-2);
+        background: transparent;
+        border: 0;
+        border-radius: 999px;
+        padding: 5px 11px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .wt-opt:hover {
+        color: var(--ink-1);
+        background: #f2f3f6;
+      }
+      .wt-opt.is-on {
+        color: #fff;
+        background: #1b1e24;
+      }
       .btn-reset {
         font: inherit;
         font-size: 13px;
@@ -824,7 +1898,7 @@ const statusEntries = Object.entries(STATUSES);
 
       /* ---------- Póster de exportación (compartir imagen) ---------- */
       .poster {
-        background: #ffffff;
+        background: var(--bg); /* respeta el tema (claro/oscuro) */
         padding: 28px;
       }
       .poster-head {
@@ -882,16 +1956,74 @@ const statusEntries = Object.entries(STATUSES);
       /* ---------- Mapa ---------- */
       .map-scroll {
         overflow-x: auto;
-        padding-bottom: 8px;
+        /* Margen negativo + padding: zona libre de recorte a los lados
+           (y arriba) para que las tarjetas escaladas/en hover y sus sombras
+           no se corten contra los bordes, manteniendo la alineación. */
+        margin: 0 -18px;
+        padding: 10px 18px 12px;
       }
       .map {
-        min-width: 1160px;
+        min-width: 1290px;
+        position: relative;
+      }
+
+      /* ---------- Overlay de flechas de seriación ---------- */
+      .wires {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+      }
+      .map[data-wires="off"] .wires {
+        display: none;
+      }
+      /* Flechas idénticas en "Al pasar" y "Siempre": finas, 5 colores.
+         La ÚNICA diferencia es qué flechas se muestran. */
+      .wire-halo {
+        fill: none;
+        stroke: var(--wire-halo);
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.8;
+      }
+      .wire-line {
+        fill: none;
+        stroke-width: 1.3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .wire-head {
+        stroke: var(--wire-halo);
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+        paint-order: stroke; /* casing por fuera del relleno */
+      }
+      /* 5 colores (rojo / verde / negro / rosa / naranja) */
+      .wire-line.cg0 { stroke: var(--wire-r); }
+      .wire-head.cg0 { fill: var(--wire-r); }
+      .wire-line.cg1 { stroke: var(--wire-g); }
+      .wire-head.cg1 { fill: var(--wire-g); }
+      .wire-line.cg2 { stroke: var(--wire-b); }
+      .wire-head.cg2 { fill: var(--wire-b); }
+      .wire-line.cg3 { stroke: var(--wire-p); }
+      .wire-head.cg3 { fill: var(--wire-p); }
+      .wire-line.cg4 { stroke: var(--wire-o); }
+      .wire-head.cg4 { fill: var(--wire-o); }
+      /* "Al pasar": solo se ven las flechas de la materia enfocada */
+      .map[data-wires="hover"] .idle,
+      .map[data-wires="hover"] .mute {
+        display: none;
       }
       .sem-heads,
       .grid {
         display: grid;
         grid-template-columns: repeat(8, minmax(135px, 1fr));
-        gap: 12px;
+        column-gap: 30px; /* gutter ancho → espacio para las flechas */
+        row-gap: 12px;
       }
       .sem-heads {
         margin-bottom: 12px;
@@ -904,6 +2036,9 @@ const statusEntries = Object.entries(STATUSES);
         display: grid;
         place-items: center;
         box-shadow: var(--shadow);
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
       }
       .sem-head span {
         font-size: 20px;
@@ -927,16 +2062,18 @@ const statusEntries = Object.entries(STATUSES);
         border: 1.5px solid transparent;
         border-radius: 12px;
         padding: 11px 12px 10px;
-        min-height: 92px;
+        height: 130px; /* misma altura para todas las materias */
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         gap: 10px;
         color: var(--ink);
         background: var(--c);
+        overflow: hidden;
         box-shadow: 0 1px 2px rgba(20, 24, 34, 0.12);
         transition: transform 0.12s ease, box-shadow 0.2s ease,
-          background 0.2s ease, border-color 0.2s ease;
+          background 0.2s ease, border-color 0.2s ease,
+          opacity 0.42s ease, filter 0.42s ease;
         -webkit-user-select: none;
         user-select: none;
       }
@@ -980,6 +2117,7 @@ const statusEntries = Object.entries(STATUSES);
         text-transform: uppercase;
         letter-spacing: 0.4px;
         line-height: 1;
+        white-space: nowrap; /* "En curso" no se parte ni desborda el chip */
         padding: 3.5px 8px 3.5px 7px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.94);
@@ -1083,8 +2221,8 @@ const statusEntries = Object.entries(STATUSES);
 
       /* PLANEADA — contorno tipo "fantasma" con franja de color arriba */
       .course[data-status="planeada"] {
-        background: #ffffff;
-        color: #2a2f37;
+        background: var(--plan-bg);
+        color: var(--plan-ink);
         border: 2px dashed color-mix(in srgb, var(--c) 78%, #8a8d90);
         box-shadow: 0 1px 2px rgba(20, 24, 34, 0.06);
         padding-top: 13px;
@@ -1162,9 +2300,9 @@ const statusEntries = Object.entries(STATUSES);
 
       /* COMPLETADA — apagada y 'palomeada': ya está hecha, no compite por atención */
       .course[data-status="completada"] {
-        background: color-mix(in srgb, var(--c) 15%, #eceef1);
+        background: color-mix(in srgb, var(--c) 15%, var(--done-mix));
         color: #6b7180;
-        border-color: color-mix(in srgb, var(--c) 22%, #e4e6ea);
+        border-color: color-mix(in srgb, var(--c) 22%, var(--line));
         box-shadow: none;
         opacity: 0.94;
       }
@@ -1183,31 +2321,88 @@ const statusEntries = Object.entries(STATUSES);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
       }
 
-      .course--extra {
-        min-height: 74px;
+      /* Las extracurriculares comparten la misma altura que el resto. */
+
+      /* ---------- Candado de prerrequisitos (suave, informativo) ---------- */
+      .lock {
+        position: absolute;
+        top: 9px;
+        left: 9px;
+        width: 17px;
+        height: 17px;
+        display: none;
+        place-items: center;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+        z-index: 2;
+      }
+      .lock svg {
+        width: 11px;
+        height: 11px;
+        fill: #7a808c;
+      }
+      .course[data-locked="true"] .lock {
+        display: grid;
+      }
+      /* Deja sitio a la 1ª línea del nombre solo cuando hay candado */
+      .course[data-locked="true"] .c-name {
+        text-indent: 20px;
+      }
+      /* La materia bloqueada se ve ligeramente "en espera" */
+      .course[data-locked="true"] {
+        opacity: 0.9;
+      }
+      .course[data-locked="true"]:hover {
+        opacity: 1;
+      }
+      .map.wires-focus .course.is-active[data-locked="true"],
+      .map.wires-focus .course.is-related[data-locked="true"] {
+        opacity: 1;
       }
 
-      /* ---------- Tracks (inglés / extra) ---------- */
-      .track {
-        margin-top: 14px;
+      /* ---------- Zona inferior: tracks + leyenda (estilo mapa oficial) ---- */
+      .map-bottom {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(135px, 1fr));
+        column-gap: 30px;
+        row-gap: 10px;
+        align-items: start;
+        margin-top: 16px;
       }
-      .track-label {
+      .mb-label {
+        grid-column: 1 / 7;
+        align-self: end;
         font-size: 12px;
         font-weight: 700;
         color: var(--ink-2);
         text-transform: uppercase;
         letter-spacing: 0.4px;
-        margin: 2px 2px 8px;
+        margin: 0 2px 2px;
+      }
+      .mb-label--ing {
+        grid-row: 1;
+      }
+      .mb-label--extra {
+        grid-row: 3;
+        margin-top: 6px;
       }
 
-      /* ---------- Leyenda de bloques ---------- */
+      /* ---------- Leyenda de bloques (vertical, esquina inferior derecha) -- */
       .blocks {
         margin-top: 26px;
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: var(--radius);
-        padding: 18px 22px;
+        padding: 16px 18px;
         box-shadow: var(--shadow);
+      }
+      /* En la zona inferior: cols 7–8, junto a Inglés/Extracurriculares. */
+      .map-bottom .blocks {
+        grid-column: 7 / 9;
+        grid-row: 1 / 5;
+        align-self: end; /* fondo alineado con las tarjetas de Tutorías */
+        margin-top: 0;
       }
       .blocks h2 {
         margin: 0 0 14px;
@@ -1217,6 +2412,11 @@ const statusEntries = Object.entries(STATUSES);
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 10px 20px;
+      }
+      /* dentro del mapa la leyenda va en una sola columna (vertical) */
+      .map-bottom .blocks-grid {
+        grid-template-columns: 1fr;
+        gap: 10px 0;
       }
       .block-item {
         display: flex;
@@ -1242,9 +2442,25 @@ const statusEntries = Object.entries(STATUSES);
 
       .foot {
         margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
         text-align: center;
         font-size: 12px;
         color: var(--ink-2);
+      }
+      .foot-legal {
+        font-size: 11.5px;
+        opacity: 0.9;
+      }
+      .foot-legal a {
+        color: var(--accent, #2f6fd0);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .foot-legal a:hover {
+        text-decoration: underline;
       }
 
       /* ---------- Modal ---------- */
@@ -1336,6 +2552,113 @@ const statusEntries = Object.entries(STATUSES);
       .btn-danger:hover {
         background: #c92f2f;
         border-color: #c92f2f;
+      }
+      /* Acciones apiladas del modal de semestre */
+      .modal-actions--col {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .modal-actions--col .btn-ghost {
+        margin-top: 2px;
+      }
+      .modal-icon--sem {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--accent);
+      }
+      .btn-primary {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 11px 18px;
+        cursor: pointer;
+        text-align: center;
+        color: var(--accent-ink, #fff);
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        transition: background 0.15s ease, color 0.15s ease,
+          border-color 0.15s ease, filter 0.15s ease;
+      }
+      .btn-primary:hover {
+        filter: brightness(1.06);
+      }
+      .btn-primary--alt {
+        color: var(--accent);
+        background: transparent;
+        border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      }
+      .btn-primary--alt:hover {
+        filter: none;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+
+      /* ---------- Popover flotante de semestre (combobox) ---------- */
+      .sem-pop {
+        position: fixed;
+        z-index: 60;
+        width: 264px;
+        max-width: calc(100vw - 16px);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3),
+          0 2px 8px rgba(0, 0, 0, 0.16);
+        padding: 6px;
+        animation: semPopIn 0.13s ease;
+      }
+      .sem-pop[hidden] {
+        display: none;
+      }
+      .sem-pop-title {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--ink-2);
+        padding: 7px 10px 6px;
+      }
+      .sem-pop-opt {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-1);
+        background: transparent;
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 10px;
+        cursor: pointer;
+        transition: background 0.12s ease, color 0.12s ease;
+      }
+      .sem-pop-opt svg {
+        width: 17px;
+        height: 17px;
+        flex: none;
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .sem-pop-opt:hover,
+      .sem-pop-opt:focus-visible {
+        outline: none;
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        color: var(--accent);
+      }
+      @keyframes semPopIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
       @keyframes overlayIn {
         from {
