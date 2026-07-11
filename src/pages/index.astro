@@ -113,6 +113,12 @@ const statusEntries = Object.entries(STATUSES);
           ))}
         </div>
         <button class="btn-reset" id="reset" type="button">Reiniciar</button>
+        <button class="btn-share" id="share" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2 8 6h3v8h2V6h3l-4-4zM4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8h-2v8H6v-8H4z" />
+          </svg>
+          Compartir
+        </button>
       </div>
 
       <!-- Mapa curricular -->
@@ -230,8 +236,26 @@ const statusEntries = Object.entries(STATUSES);
       </footer>
     </div>
 
+    <!-- Modal de confirmación de reinicio -->
+    <div class="modal-overlay" id="reset-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4m0 4h.01M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </div>
+        <h3 id="reset-title">¿Reiniciar todo el progreso?</h3>
+        <p>Se borrará el estado de todas las materias. Esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="reset-cancel" type="button">Cancelar</button>
+          <button class="btn-danger" id="reset-confirm" type="button">Sí, reiniciar</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       import { ALL_COURSES, STATUS_ORDER } from "../data/curriculum.js";
+      import { toPng } from "html-to-image";
 
       const KEY = "wayfinder:v1";
       let state = load();
@@ -316,14 +340,137 @@ const statusEntries = Object.entries(STATUSES);
         }
       });
       const resetBtn = document.querySelector("#reset");
-      if (resetBtn)
+      const resetModal = document.querySelector("#reset-modal");
+      const closeResetModal = () => {
+        if (resetModal) resetModal.hidden = true;
+      };
+      if (resetBtn && resetModal) {
         resetBtn.addEventListener("click", () => {
-          if (confirm("¿Reiniciar todo el progreso?")) {
+          resetModal.hidden = false;
+          const cancel = document.querySelector("#reset-cancel");
+          if (cancel) cancel.focus();
+        });
+        resetModal.addEventListener("click", (e) => {
+          if (e.target === resetModal) closeResetModal();
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !resetModal.hidden) closeResetModal();
+        });
+        const cancelBtn = document.querySelector("#reset-cancel");
+        if (cancelBtn) cancelBtn.addEventListener("click", closeResetModal);
+        const confirmBtn = document.querySelector("#reset-confirm");
+        if (confirmBtn)
+          confirmBtn.addEventListener("click", () => {
             state = {};
             save();
             applyAll();
-          }
-        });
+            closeResetModal();
+          });
+      }
+
+      /* ---------- Compartir: exportar el mapa como imagen PNG ---------- */
+      const mapEl = document.querySelector(".map");
+      const shareBtn = document.querySelector("#share");
+      if (shareBtn) shareBtn.addEventListener("click", exportImage);
+
+      function buildPoster() {
+        const g = (sel) => {
+          const e = document.querySelector(sel);
+          return e ? e.textContent : "";
+        };
+        const poster = document.createElement("div");
+        poster.className = "poster";
+        poster.style.width = "1216px"; // 1160 mapa + 28*2 padding (box-sizing)
+
+        const head = document.createElement("div");
+        head.className = "poster-head";
+        head.innerHTML =
+          '<div class="poster-brand"><span class="brand-badge">ISW</span>' +
+          "<div><h1>Wayfinder — Mi avance</h1>" +
+          "<p>Ingeniero en Software 2023 · ITSON</p></div></div>" +
+          '<div class="poster-stats"><div class="ps-pct">' +
+          g("#pct") +
+          '</div><div class="ps-cr">' +
+          g("#cr-done") +
+          " / " +
+          g("#cr-total") +
+          ' créditos</div><div class="ps-counts">' +
+          '<b style="color:var(--st-completada)">' +
+          g("#n-completada") +
+          "</b> compl · " +
+          '<b style="color:var(--st-en_curso)">' +
+          g("#n-en_curso") +
+          "</b> en curso · " +
+          '<b style="color:var(--st-planeada-ink)">' +
+          g("#n-planeada") +
+          "</b> plan · " +
+          '<b style="color:var(--st-pendiente)">' +
+          g("#n-pendiente") +
+          "</b> pend</div></div>";
+        poster.appendChild(head);
+
+        const mapClone = mapEl.cloneNode(true);
+        mapClone.style.width = "1160px";
+        mapClone.style.minWidth = "1160px";
+        poster.appendChild(mapClone);
+
+        const foot = document.createElement("div");
+        foot.className = "poster-foot";
+        foot.textContent = "github.com/oyzters/Wayfinder";
+        poster.appendChild(foot);
+
+        return poster;
+      }
+
+      async function exportImage() {
+        if (!mapEl || !shareBtn) return;
+        const label = shareBtn.querySelector("span") || shareBtn;
+        const prev = label.textContent;
+        label.textContent = "Generando…";
+        shareBtn.disabled = true;
+
+        // El póster va dentro de un contenedor oculto (el desfase va en el
+        // contenedor, NO en el póster, para que se capture completo).
+        const holder = document.createElement("div");
+        holder.style.cssText = "position:fixed;left:-100000px;top:0;";
+        const poster = buildPoster();
+        holder.appendChild(poster);
+        document.body.appendChild(holder);
+
+        try {
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          const opts = {
+            pixelRatio: 2,
+            backgroundColor: "#ffffff",
+            cacheBust: true,
+            width: poster.offsetWidth,
+            height: poster.offsetHeight,
+          };
+          // Primer render de "calentamiento" (evita imágenes en blanco).
+          await toPng(poster, opts);
+          const dataUrl = await toPng(poster, opts);
+
+          const d = new Date();
+          const pad = (n) => String(n).padStart(2, "0");
+          const stamp =
+            pad(d.getDate()) +
+            "-" +
+            pad(d.getMonth() + 1) +
+            "-" +
+            pad(d.getFullYear() % 100);
+          const a = document.createElement("a");
+          a.href = dataUrl;
+          a.download = "wayfinder-isw-" + stamp + ".png";
+          a.click();
+        } catch (err) {
+          console.error(err);
+          alert("No se pudo generar la imagen. Intenta de nuevo.");
+        } finally {
+          holder.remove();
+          shareBtn.disabled = false;
+          label.textContent = prev;
+        }
+      }
 
       applyAll();
     </script>
@@ -647,6 +794,90 @@ const statusEntries = Object.entries(STATUSES);
         border-color: #f3c4c4;
         background: #fdf2f2;
       }
+      .btn-share {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        background: #1b1e24;
+        border: 1px solid #1b1e24;
+        border-radius: 10px;
+        padding: 7px 16px;
+        cursor: pointer;
+        transition: background 0.15s ease, opacity 0.15s ease;
+      }
+      .btn-share svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+      .btn-share:hover {
+        background: #000;
+      }
+      .btn-share:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      /* ---------- Póster de exportación (compartir imagen) ---------- */
+      .poster {
+        background: #ffffff;
+        padding: 28px;
+      }
+      .poster-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 20px;
+      }
+      .poster-brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .poster-brand h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .poster-brand p {
+        margin: 2px 0 0;
+        color: var(--ink-2);
+        font-size: 13px;
+      }
+      .poster-stats {
+        text-align: right;
+      }
+      .ps-pct {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -1px;
+      }
+      .ps-cr {
+        font-size: 14px;
+        color: var(--ink-2);
+        margin-top: 3px;
+      }
+      .ps-counts {
+        font-size: 12.5px;
+        color: var(--ink-2);
+        margin-top: 6px;
+      }
+      .poster .blocks {
+        margin-top: 20px;
+        box-shadow: none;
+      }
+      .poster-foot {
+        margin-top: 16px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
 
       /* ---------- Mapa ---------- */
       .map-scroll {
@@ -826,8 +1057,11 @@ const statusEntries = Object.entries(STATUSES);
         color: var(--ink);
       }
       .course[data-status="completada"] .badge::after {
-        content: "✓";
-        font-weight: 900;
+        content: "";
+        width: 12px;
+        height: 12px;
+        background: center / contain no-repeat
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 13l4 4L19 7' fill='none' stroke='%23ffffff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       }
       .course[data-status="en_curso"] .badge::after {
         content: "◐";
@@ -1011,6 +1245,115 @@ const statusEntries = Object.entries(STATUSES);
         text-align: center;
         font-size: 12px;
         color: var(--ink-2);
+      }
+
+      /* ---------- Modal ---------- */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(20, 24, 34, 0.45);
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+        animation: overlayIn 0.15s ease;
+      }
+      .modal-overlay[hidden] {
+        display: none;
+      }
+      .modal {
+        width: 100%;
+        max-width: 390px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 26px 26px 20px;
+        box-shadow: 0 24px 60px rgba(20, 24, 34, 0.32);
+        text-align: center;
+        animation: modalIn 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      .modal-icon {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #fdecec;
+        color: #e23b3b;
+      }
+      .modal-icon svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .modal h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .modal p {
+        margin: 0 0 22px;
+        color: var(--ink-2);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      }
+      .btn-ghost,
+      .btn-danger {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 10px 18px;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .btn-ghost {
+        color: var(--ink-1);
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .btn-ghost:hover {
+        background: #f2f3f6;
+      }
+      .btn-danger {
+        color: #fff;
+        background: #e23b3b;
+        border: 1px solid #e23b3b;
+      }
+      .btn-danger:hover {
+        background: #c92f2f;
+        border-color: #c92f2f;
+      }
+      @keyframes overlayIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
