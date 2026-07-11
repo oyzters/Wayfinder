@@ -87,6 +87,19 @@ const statusEntries = Object.entries(STATUSES);
           <div class="stat s-planeada"><b id="n-planeada">0</b><span>Planeadas</span></div>
           <div class="stat s-pendiente"><b id="n-pendiente">0</b><span>Pendientes</span></div>
         </div>
+
+        <a
+          class="repo-link"
+          href="https://github.com/oyzters/Wayfinder"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Apóyalo con una ⭐ en GitHub"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          <span>GitHub</span>
+        </a>
       </header>
 
       <!-- Barra de ayuda / acciones -->
@@ -420,8 +433,8 @@ const statusEntries = Object.entries(STATUSES);
       /* ---------- Topbar ---------- */
       .topbar {
         display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 28px;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 22px;
         align-items: center;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -456,9 +469,42 @@ const statusEntries = Object.entries(STATUSES);
         color: var(--ink-2);
         font-size: 13px;
       }
+      .repo-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-decoration: none;
+        color: var(--ink-1);
+        background: #f7f8fa;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 18px;
+        transition: color 0.15s ease, background 0.15s ease,
+          border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .repo-link:hover {
+        color: #000;
+        background: #ffffff;
+        border-color: #c9ccd3;
+        box-shadow: var(--shadow);
+      }
+      .repo-link svg {
+        width: 28px;
+        height: 28px;
+        fill: currentColor;
+        flex: none;
+      }
+      .repo-link span {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        color: var(--ink-2);
+      }
 
       .progress-wrap {
-        min-width: 220px;
+        min-width: 160px;
       }
       .progress-head {
         display: flex;
