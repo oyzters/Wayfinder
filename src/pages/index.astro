@@ -1244,62 +1244,58 @@ const statusEntries = Object.entries(STATUSES);
         --brand-badge-bg: #1b1e24; /* insignia ISW / sem-heads / botones oscuros */
       }
 
-      /* ================= MODO OSCURO — grafito ================= */
+      /* ================= MODO OSCURO — slate ================= */
       /* ===================================================================
-         MODO OSCURO — ECLIPSE.
-         Base tinta profunda casi-negra azulada, alto contraste. Las tarjetas
-         NO se rellenan de color: son chips oscuros con una BARRA lateral de
-         color + TÍTULO de color. La identidad del bloque se lee como acento,
-         no como bloque macizo. Estética tipo Linear / GitHub. Acento UI:
-         azul eléctrico. Comparte los HUES del tema claro → congruencia.
+         MODO OSCURO — SLATE.
+         Superficies neutras de grafito, alto contraste sin estridencias.
+         Las tarjetas NO se rellenan de color: son chips oscuros con una
+         BARRA lateral + TÍTULO teñidos con el color del bloque. Para que el
+         tablero se lea como UN SOLO sistema, los colores de bloque están
+         DESATURADOS y nivelados a una misma luminosidad (nada de neón). Un
+         único acento — azul sereno — gobierna la UI. Estética Linear/Vercel.
          --cd = color del bloque (barra/título); --chip = superficie base.
          =================================================================== */
       :root[data-theme="dark"] {
-        --bg: #0f1217;
-        --panel: #171b22;
-        --ink-1: #e7eaf0;
-        --ink-2: #8a92a0;
-        --line: #252b34;
-        --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 34px rgba(0, 0, 0, 0.55);
+        --bg: #0b0d11;
+        --panel: #161a21;
+        --ink-1: #e6e8ec;
+        --ink-2: #8b929e;
+        --line: #30363f;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 30px rgba(0, 0, 0, 0.5);
 
-        --accent: #4ca6ff;
-        --accent-ink: #04121f;
+        --accent: #4f9de0;
+        --accent-ink: #08121c;
 
-        --st-pendiente: #8a92a0;
-        --st-planeada: #e6a417;
-        --st-planeada-ink: #f0b840;
-        --st-en_curso: #4ca6ff;
-        --st-completada: #3ccf86;
+        --st-pendiente: #9aa0ab;
+        --st-planeada: #eab234;
+        --st-planeada-ink: #f0be4e;
+        --st-en_curso: #4f9de0;
+        --st-completada: #35c07f;
 
-        --wire-prereq: #f2b53d;
-        --wire-unlock: #43cf87;
-        --wire-idle: #5a6270;
-        --wire-r: #ff6b6b;
-        --wire-g: #43cf87;
-        --wire-b: #cdd3dd;
-        --wire-p: #f06fb0;
-        --wire-o: #ff9a4d;
-        --wire-halo: #0d1015;
+        --wire-prereq: #eab234;
+        --wire-unlock: #35c07f;
+        --wire-idle: #565d68;
+        --wire-r: #ec5555;
+        --wire-g: #35c07f;
+        --wire-b: #c3c9d2;
+        --wire-p: #e765a8;
+        --wire-o: #f6883a;
+        --wire-halo: #0c0d11;
 
-        --surface-2: #1e232b;
-        --track-bg: #20262e;
-        --plan-bg: #171b22;
-        --plan-ink: #e7eaf0;
-        --done-mix: #141920;
-        --chip: #1b212a;
+        --surface-2: #232833;
+        --track-bg: #262b35;
+        --plan-bg: #1c212a;
+        --plan-ink: #e6e8ec;
+        --done-mix: #151920;
+        --chip: #1f242e; /* superficie base de tarjeta, claramente sobre el fondo */
       }
       :root[data-theme="dark"] body {
         background: radial-gradient(
-            1100px 600px at 100% -12%,
-            rgba(76, 166, 255, 0.1) 0%,
-            transparent 58%
+            1000px 560px at 100% -14%,
+            rgba(91, 155, 216, 0.06) 0%,
+            transparent 60%
           ),
-          radial-gradient(
-            820px 500px at -6% 4%,
-            rgba(76, 166, 255, 0.05) 0%,
-            transparent 55%
-          ),
-          linear-gradient(180deg, #12161c 0%, #0f1217 46%, #0b0d11 100%);
+          linear-gradient(180deg, #101217 0%, #0e0f13 55%, #0b0c0f 100%);
       }
 
       /* ---- Cromo compartido (usa tokens → se adapta a cada concepto) ---- */
@@ -1398,50 +1394,75 @@ const statusEntries = Object.entries(STATUSES);
           color-mix(in srgb, var(--cd) 32%, transparent);
       }
 
-      /* ---- Tarjetas: chip oscuro + barra lateral de color ---- */
+      /* ---- Tarjetas: chip TINTADO con el color del bloque + barra lateral ---- */
       :root[data-theme="dark"] .course[data-status="pendiente"],
       :root[data-theme="dark"] .course[data-status="en_curso"] {
-        background: var(--chip);
+        background: color-mix(in srgb, var(--cd) 15%, var(--chip));
         color: var(--ink-1);
-        border-left: 3px solid var(--cd);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5),
-          inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        border: 1px solid color-mix(in srgb, var(--cd) 26%, var(--line));
+        border-left: 4px solid var(--cd);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45),
+          0 6px 16px rgba(0, 0, 0, 0.3);
       }
       :root[data-theme="dark"] .course[data-status="en_curso"] {
         animation: none;
         border-left-color: var(--cd);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55),
-          0 0 0 2px color-mix(in srgb, var(--cd) 55%, transparent),
-          inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
+          0 0 0 1px color-mix(in srgb, var(--cd) 42%, transparent),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      /* PLANEADA (oscuro): chip tintado + franja superior, todo con --cd
+         (color oscuro), nunca con el --c brillante del tema claro. */
+      :root[data-theme="dark"] .course[data-status="planeada"] {
+        background: color-mix(in srgb, var(--cd) 14%, var(--panel));
+        color: var(--ink-1);
+        border: 2px dashed color-mix(in srgb, var(--cd) 50%, var(--line));
+        border-left-width: 2px;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cd) 12%, transparent);
+      }
+      :root[data-theme="dark"] .course[data-status="planeada"]::before {
+        background: var(--cd);
+      }
+      :root[data-theme="dark"] .course[data-status="planeada"] .c-name {
+        color: var(--cd);
+      }
+
+      /* COMPLETADA (oscuro): tenue, con el color oscuro del bloque. */
+      :root[data-theme="dark"] .course[data-status="completada"] {
+        background: color-mix(in srgb, var(--cd) 9%, var(--done-mix));
+        border-color: color-mix(in srgb, var(--cd) 20%, var(--line));
       }
 
       /* ===================================================================
-         COLOR DE BLOQUE (--cd). Mismos hues que el claro → congruencia.
-         Brillos luminosos sobre tinta profunda.
+         COLOR DE BLOQUE (--cd). Paleta VIVA de ITSON, fiel a los mismos hues
+         del tema claro y solo elevada lo justo para leerse sobre grafito.
+         Cada matiz bien separado del vecino para distinguir los bloques de un
+         vistazo: cian ≠ azul, naranja ≠ amarillo, verde ≠ verde lima.
          =================================================================== */
       :root[data-theme="dark"] .course[data-block="ciencias_basicas"] {
-        --cd: #c6ccd7; /* gris más claro para mejor lectura en oscuro */
+        --cd: #aab0b9; /* gris */
       }
       :root[data-theme="dark"] .course[data-block="formacion_general"] {
-        --cd: #46b4ee;
+        --cd: #33b1ea; /* cian / azul cielo */
       }
       :root[data-theme="dark"] .course[data-block="construccion"] {
-        --cd: #6f9bff;
+        --cd: #6e8fe0; /* azul periwinkle */
       }
       :root[data-theme="dark"] .course[data-block="diseno"] {
-        --cd: #ff9a4d;
+        --cd: #f6883a; /* naranja */
       }
       :root[data-theme="dark"] .course[data-block="admin_proyectos"] {
-        --cd: #ffcf47;
+        --cd: #f3c430; /* amarillo / oro */
       }
       :root[data-theme="dark"] .course[data-block="optativa_disciplinar"] {
-        --cd: #43cf87;
+        --cd: #2fb56a; /* verde */
       }
       :root[data-theme="dark"] .course[data-block="practica_profesional"] {
-        --cd: #a6d95a;
+        --cd: #93cf46; /* verde lima */
       }
       :root[data-theme="dark"] .course[data-block="ingles"] {
-        --cd: #ff6b6b;
+        --cd: #ec5555; /* rojo */
       }
 
       /* Barra de progreso "en curso": pulso con el acento */
@@ -2011,6 +2032,18 @@ const statusEntries = Object.entries(STATUSES);
       .wire-head.cg3 { fill: var(--wire-p); }
       .wire-line.cg4 { stroke: var(--wire-o); }
       .wire-head.cg4 { fill: var(--wire-o); }
+      /* En oscuro las flechas se atenúan para no saturar el tablero de líneas
+         de color vivo (se realzan al enfocar una materia). */
+      :root[data-theme="dark"] .wire-line {
+        opacity: 0.55;
+      }
+      :root[data-theme="dark"] .wire-head {
+        opacity: 0.7;
+      }
+      :root[data-theme="dark"] .map.wires-focus .wire-line,
+      :root[data-theme="dark"] .map.wires-focus .wire-head {
+        opacity: 1;
+      }
       /* "Al pasar": solo se ven las flechas de la materia enfocada */
       .map[data-wires="hover"] .idle,
       .map[data-wires="hover"] .mute {
