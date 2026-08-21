@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT · Ver archivo LICENSE en la raíz del proyecto.
 import {
   BLOCKS,
-  STATUSES,
   SEMESTERS,
   ENGLISH,
   EXTRACURRICULARES,
@@ -20,7 +19,11 @@ const metaText = (course) =>
     : course.hours;
 
 const blockEntries = Object.entries(BLOCKS);
-const statusEntries = Object.entries(STATUSES);
+
+/** Materias que cuentan para el semestre i: la columna + su inglés + su tutoría.
+    Es exactamente lo que marca "Completar hasta este semestre". */
+const semTotal = (i) =>
+  SEMESTERS[i].length + (ENGLISH[i] ? 1 : 0) + (EXTRACURRICULARES[i] ? 1 : 0);
 ---
 
 <!doctype html>
@@ -94,6 +97,11 @@ const statusEntries = Object.entries(STATUSES);
           <div class="progress-sub">
             <span><b id="cr-done">0.00</b> / <span id="cr-total">0.00</span> créditos completados</span>
           </div>
+          <div class="progress-left" id="left-line">
+            Te faltan <b id="left-courses">0</b> materias ·
+            <b id="left-credits">0.00</b> créditos ·
+            <b id="left-sems" title="Estimado a partir de la seriación y de la carga promedio del plan">~0 semestres</b>
+          </div>
         </div>
 
         <div class="stats">
@@ -139,13 +147,28 @@ const statusEntries = Object.entries(STATUSES);
 
       <!-- Barra de ayuda / acciones -->
       <div class="toolbar">
-        <p class="hint">
-          <b>Clic</b> para avanzar el estado · <b>Clic derecho</b> para retroceder
-        </p>
-        <div class="status-legend">
-          {statusEntries.map(([key, s]) => (
-            <span class={`chip st-${key}`}><i class="dot"></i>{s.label}</span>
-          ))}
+        <button class="help-btn" type="button" aria-label="Cómo se usa el mapa">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9.1 9a3 3 0 1 1 4 2.8c-.7.3-1.1 1-1.1 1.7v.5" />
+            <path d="M12 17.5h.01" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          <span class="help-tip" role="tooltip">
+            <b>Clic</b> avanza el estado · <b>clic derecho</b> lo retrocede.<br />
+            <b>Shift + clic</b> aplica ese estado a todo el rango de la columna.<br />
+            <b>Clic en el número</b> de semestre lo marca completo de golpe.<br />
+            <b>Cursor sobre una materia</b> muestra cuántas bloquea.
+          </span>
+        </button>
+        <div class="wires-toggle lens-toggle" role="group" aria-label="Qué materias resaltar">
+          <span class="wt-label">Ver</span>
+          <button class="wt-opt" data-lens="all" type="button">Todo</button>
+          <button class="wt-opt" data-lens="now" type="button">
+            Cursando <i class="wt-n" id="lens-n-now">0</i>
+          </button>
+          <button class="wt-opt" data-lens="next" type="button">
+            Puedo llevar <i class="wt-n" id="lens-n-next">0</i>
+          </button>
         </div>
         <div class="wires-toggle" role="group" aria-label="Flechas de seriación">
           <span class="wt-label">Prerrequisitos</span>
@@ -153,7 +176,14 @@ const statusEntries = Object.entries(STATUSES);
           <button class="wt-opt" data-wires-mode="hover" type="button">Al pasar</button>
           <button class="wt-opt" data-wires-mode="off" type="button">Ocultar</button>
         </div>
+        <span class="tb-spacer"></span>
         <button class="btn-reset" id="reset" type="button">Reiniciar</button>
+        <button class="btn-share btn-share--alt" id="copy-link" type="button" title="Copia una liga con tu avance dentro. Sirve para abrirlo en otra computadora.">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10.6 13.4a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7l-1.4 1.4M13.4 10.6a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Copiar liga</span>
+        </button>
         <button class="btn-share" id="share" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 2 8 6h3v8h2V6h3l-4-4zM4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8h-2v8H6v-8H4z" />
@@ -172,7 +202,14 @@ const statusEntries = Object.entries(STATUSES);
           <!-- Cabeceras de semestre -->
           <div class="sem-heads">
             {SEMESTERS.map((_, i) => (
-              <div class="sem-head" data-sem={i} title="Clic para marcar el semestre"><span>{i + 1}</span></div>
+              <div
+                class="sem-head"
+                data-sem={i}
+                title="Clic para marcar el semestre · el contador incluye inglés y tutorías"
+              >
+                <span>{i + 1}</span>
+                <i class="sem-count" data-sem-count={i}>0/{semTotal(i)}</i>
+              </div>
             ))}
           </div>
 
@@ -198,6 +235,8 @@ const statusEntries = Object.entries(STATUSES);
                       <span class="c-status"></span>
                       <span class="c-meta">{metaText(course)}</span>
                     </span>
+                    <span class="impact" aria-hidden="true"></span>
+                    <span class="lock-msg" aria-hidden="true"></span>
                   </button>
                 ))}
               </div>
@@ -226,6 +265,8 @@ const statusEntries = Object.entries(STATUSES);
                   <span class="c-status"></span>
                   <span class="c-meta">{metaText(course)}</span>
                 </span>
+                <span class="impact" aria-hidden="true"></span>
+                <span class="lock-msg" aria-hidden="true"></span>
               </button>
             ))}
             <div class="mb-label mb-label--extra">Extracurriculares</div>
@@ -296,6 +337,70 @@ const statusEntries = Object.entries(STATUSES);
       </div>
     </div>
 
+    <!-- Arranque en 2 clics: se muestra la primera vez, sin progreso guardado -->
+    <div class="modal-overlay" id="onb-modal" hidden>
+      <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="onb-title">
+        <div class="modal-icon modal-icon--sem">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 0L9 7" />
+          </svg>
+        </div>
+        <h3 id="onb-title">¿En qué semestre vas?</h3>
+        <p>
+          Con un clic marcamos como completado todo lo anterior y ese semestre
+          como <b>en curso</b>. Luego ajustas las excepciones.
+        </p>
+        <div class="onb-grid">
+          {SEMESTERS.map((_, i) => (
+            <button class="onb-sem" data-onb-sem={i} type="button">{i + 1}</button>
+          ))}
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="onb-skip" type="button">Prefiero marcarlo yo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liga compartida: choque entre el avance de la liga y el local -->
+    <div class="modal-overlay" id="link-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="link-title">
+        <div class="modal-icon modal-icon--sem">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10.6 13.4a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7l-1.4 1.4M13.4 10.6a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.4-1.4" />
+          </svg>
+        </div>
+        <h3 id="link-title">Esta liga trae un avance</h3>
+        <p>
+          Ya tienes progreso guardado en este navegador. Si usas el de la liga,
+          el tuyo se reemplaza.
+        </p>
+        <div class="modal-actions modal-actions--col">
+          <button class="btn-primary" id="link-use" type="button">Usar el avance de la liga</button>
+          <button class="btn-ghost" id="link-keep" type="button">Conservar el mío</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liga que no se pudo leer (cortada, alterada o de otra versión) -->
+    <div class="modal-overlay" id="bad-link-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bad-link-title">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4m0 4h.01M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </div>
+        <h3 id="bad-link-title">Esa liga no se pudo leer</h3>
+        <p>
+          Pudo llegar cortada, con algún carácter cambiado, o ser de una versión
+          anterior del mapa. <b>Tu avance no se tocó.</b> Pide que te la vuelvan
+          a copiar.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-primary" id="bad-link-ok" type="button">Entendido</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Popover flotante de acciones por semestre (clic en el número) -->
     <div class="sem-pop" id="sem-modal" role="menu" aria-labelledby="sem-title" hidden>
       <div class="sem-pop-title" id="sem-title">Semestre</div>
@@ -331,18 +436,115 @@ const statusEntries = Object.entries(STATUSES);
         return c ? c.name : id;
       };
 
-      const KEY = "wayfinder:v1";
-      let state = load();
+      /* ---------- Persistencia (solo cliente) ----------
+         La key lleva el slug del mapa para que, al haber varios mapas, cada uno
+         guarde por separado. `LEGACY_KEY` es la key global previa: se migra una
+         sola vez para no perder el avance de quien ya usaba la app. */
+      const MAP_SLUG = "isw";
+      const KEY = "wayfinder:v1:" + MAP_SLUG;
+      const LEGACY_KEY = "wayfinder:v1";
+      const ONB_KEY = "wayfinder:onboarded:" + MAP_SLUG;
 
       function load() {
         try {
-          return JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+          let raw = localStorage.getItem(KEY);
+          if (raw === null) {
+            const legacy = localStorage.getItem(LEGACY_KEY);
+            if (legacy !== null) {
+              localStorage.setItem(KEY, legacy);
+              localStorage.removeItem(LEGACY_KEY);
+              raw = legacy;
+            }
+          }
+          return JSON.parse(raw || "{}") || {};
         } catch {
           return {};
         }
       }
       function save() {
-        localStorage.setItem(KEY, JSON.stringify(state));
+        try {
+          localStorage.setItem(KEY, JSON.stringify(state));
+        } catch {}
+      }
+      const isEmptyState = (s) => Object.keys(s || {}).length === 0;
+
+      /* ---------- Avance dentro de la URL ----------
+         Formato v2 (23 caracteres):
+           byte 0      · versión del formato
+           bytes 1..15 · 2 bits por materia (4 estados), en el orden de ALL_COURSES
+           byte 16     · checksum
+         El LARGO detecta que el mapa cambió o que la liga llegó cortada. El
+         CHECKSUM detecta caracteres alterados que respetan el largo: sin él, el
+         92% de esos cambios pasaba como avance válido pero equivocado, porque
+         las 4 combinaciones de 2 bits son los 4 estados y no sobra ninguna que
+         delate un bit volteado. */
+      const LINK_VERSION = 2;
+      const DATA_BYTES = () => 1 + Math.ceil(ALL_COURSES.length / 4);
+      const packedBytes = () => DATA_BYTES() + 1;
+
+      // Suma rodante: depende de la posición, así dos bytes alterados no se
+      // cancelan entre sí como sí pasaría con una suma simple.
+      function checksum(byteAt, n) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s = (s * 31 + byteAt(i)) & 0xff;
+        return s;
+      }
+
+      function encodeState(src) {
+        const n = DATA_BYTES();
+        const bytes = new Uint8Array(n + 1);
+        bytes[0] = LINK_VERSION;
+        ALL_COURSES.forEach((c, i) => {
+          const v = STATUS_ORDER.indexOf(src[c.id] || "pendiente");
+          bytes[1 + (i >> 2)] |= (v < 0 ? 0 : v) << ((i & 3) * 2);
+        });
+        bytes[n] = checksum((i) => bytes[i], n);
+        let bin = "";
+        bytes.forEach((b) => (bin += String.fromCharCode(b)));
+        return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      }
+
+      /** Devuelve null si la liga no es utilizable (caracteres, largo, versión
+          o checksum). Nunca devuelve un avance "a medias". */
+      function decodeState(str) {
+        try {
+          if (!/^[A-Za-z0-9\-_]+$/.test(str)) return null;
+          const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+          const n = DATA_BYTES();
+          if (bin.length !== packedBytes()) return null;
+          if (bin.charCodeAt(0) !== LINK_VERSION) return null;
+          if (bin.charCodeAt(n) !== checksum((i) => bin.charCodeAt(i), n)) return null;
+          const out = {};
+          ALL_COURSES.forEach((c, i) => {
+            const byte = bin.charCodeAt(1 + (i >> 2));
+            const st = STATUS_ORDER[(byte >> ((i & 3) * 2)) & 3];
+            if (st && st !== "pendiente") out[c.id] = st;
+          });
+          return out;
+        } catch {
+          return null;
+        }
+      }
+
+      /** {kind:"none"} · {kind:"ok", state} · {kind:"invalid"}
+          Distinguir "no venía liga" de "venía rota" es lo que permite avisar
+          en vez de dejar al usuario con la pantalla vieja y sin explicación. */
+      function readIncomingLink() {
+        const m = /(?:^|[#&])p=([^&]*)/.exec(location.hash || "");
+        if (!m) return { kind: "none" };
+        // La liga se consume una vez: se limpia para que recargar no la reaplique.
+        history.replaceState(null, "", location.pathname + location.search);
+        const decoded = decodeState(m[1]);
+        return decoded ? { kind: "ok", state: decoded } : { kind: "invalid" };
+      }
+
+      const link = readIncomingLink();
+      const incoming = link.kind === "ok" ? link.state : null;
+      let state = load();
+      const linkConflict = !!incoming && !isEmptyState(state);
+      if (incoming && !linkConflict) {
+        state = incoming;
+        save();
       }
       const statusOf = (id) => state[id] || "pendiente";
       const set = (sel, v) => {
@@ -350,20 +552,112 @@ const statusEntries = Object.entries(STATUSES);
         if (e) e.textContent = String(v);
       };
 
+      /* ---------- Regla del candado ----------
+         Con prerrequisitos sin cubrir, una materia NO puede estar "en curso"
+         (no la puedes estar llevando) ni "completada" (no la pudiste aprobar).
+         Quedan libres "pendiente" y "planeada": planear a futuro siempre vale.
+         La regla se aplica en un único punto (allowed) para que ninguna vía
+         —clic, clic derecho, shift+clic o las acciones por semestre— sea una
+         puerta trasera. */
+      const LOCKABLE = new Set(["en_curso", "completada"]);
+      const prereqsDone = (id, st) =>
+        (PREREQS[id] || []).every((r) => (st[r] || "pendiente") === "completada");
+      const allowed = (id, s, st) => !LOCKABLE.has(s) || prereqsDone(id, st);
+
+      const shakeTimers = new Map();
+      function denyLocked(id) {
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (!el) return;
+        const msg = el.querySelector(".lock-msg");
+        if (msg)
+          msg.textContent =
+            el.getAttribute("data-lock-short") || "Faltan prerrequisitos";
+        // Quitar y volver a poner reinicia la animación en clics seguidos.
+        el.removeAttribute("data-shake");
+        void el.offsetWidth;
+        el.setAttribute("data-shake", "1");
+        clearTimeout(shakeTimers.get(id));
+        shakeTimers.set(
+          id,
+          setTimeout(() => el.removeAttribute("data-shake"), 1600)
+        );
+      }
+
       function setStatus(id, s) {
+        if (!allowed(id, s, state)) {
+          denyLocked(id);
+          return false;
+        }
         if (s === "pendiente") delete state[id];
         else state[id] = s;
         save();
         const el = document.querySelector(`[data-id="${id}"]`);
         if (el) el.setAttribute("data-status", statusOf(id));
         renderProgress();
+        return true;
       }
 
       function cycle(id, dir) {
+        const N = STATUS_ORDER.length;
         const i = STATUS_ORDER.indexOf(statusOf(id));
-        const next =
-          STATUS_ORDER[(i + dir + STATUS_ORDER.length) % STATUS_ORDER.length];
+        const at = (k) => STATUS_ORDER[(((i + k) % N) + N) % N];
+        let next = at(dir);
+        if (!allowed(id, next, state)) {
+          // Hacia adelante se avisa con el candado y la tarjeta no se mueve.
+          if (dir > 0) return denyLocked(id);
+          // Hacia atrás se saltan los escalones bloqueados.
+          for (let k = 2; k < N; k++) {
+            next = at(dir * k);
+            if (allowed(id, next, state)) break;
+          }
+          if (!allowed(id, next, state)) return denyLocked(id);
+        }
         setStatus(id, next);
+      }
+
+      /* Descendientes transitivos de cada materia (solo depende de PREREQS, que
+         es estático → se calcula una vez). Sirve para el "costo de reprobar". */
+      const DESCENDANTS = (() => {
+        const memo = new Map();
+        const calc = (id) => {
+          if (memo.has(id)) return memo.get(id);
+          const out = new Set();
+          memo.set(id, out);
+          (UNLOCKS[id] || []).forEach((next) => {
+            out.add(next);
+            calc(next).forEach((m) => out.add(m));
+          });
+          return out;
+        };
+        ALL_COURSES.forEach((c) => calc(c.id));
+        return memo;
+      })();
+
+      /* Semestres restantes: el mayor entre la cadena de seriación más larga que
+         te falta (no puedes ir más rápido que eso) y lo que tarda tu carga
+         promedio en absorber las materias pendientes. */
+      function remainingSemesters(credited, pendingCount) {
+        const pend = (id) => statusOf(id) !== "completada";
+        const memo = new Map();
+        const depth = (id) => {
+          if (memo.has(id)) return memo.get(id);
+          memo.set(id, 1);
+          let best = 1;
+          (PREREQS[id] || []).forEach((r) => {
+            if (pend(r)) best = Math.max(best, depth(r) + 1);
+          });
+          memo.set(id, best);
+          return best;
+        };
+        let chain = 0;
+        ALL_COURSES.forEach((c) => {
+          if (pend(c.id)) chain = Math.max(chain, depth(c.id));
+        });
+        const perTerm = Math.max(
+          1,
+          Math.round(credited.length / SEMESTERS.length)
+        );
+        return Math.max(chain, Math.ceil(pendingCount / perTerm));
       }
 
       function renderProgress() {
@@ -394,30 +688,94 @@ const statusEntries = Object.entries(STATUSES);
           el.textContent = `${done}/${list.length}`;
         });
 
-        updateLocks();
+        // Avance por semestre. Cuenta lo mismo que marca "Completar hasta este
+        // semestre": la columna + el inglés y la tutoría de ese semestre.
+        document.querySelectorAll("[data-sem-count]").forEach((el) => {
+          const ids = semCourseIds(+el.getAttribute("data-sem-count"));
+          const done = ids.filter((id) => statusOf(id) === "completada").length;
+          el.textContent = `${done}/${ids.length}`;
+          el.classList.toggle("is-full", ids.length > 0 && done === ids.length);
+        });
+
+        // "Te faltan N materias · X créditos · ~Y semestres"
+        const leftList = credited.filter((c) => statusOf(c.id) !== "completada");
+        const leftCr = totalCr - doneCr;
+        set("#left-courses", leftList.length);
+        set("#left-credits", leftCr.toFixed(2));
+        set(
+          "#left-sems",
+          leftList.length
+            ? "~" + remainingSemesters(credited, leftList.length) + " semestres"
+            : "¡plan terminado!"
+        );
+        const leftLine = document.querySelector("#left-line");
+        if (leftLine) leftLine.classList.toggle("is-done", !leftList.length);
+
+        const eligible = updateLocks();
+        set("#lens-n-now", counts.en_curso);
+        set("#lens-n-next", eligible);
         scheduleWireLayout();
       }
 
-      /* ---------- Candados de prerrequisitos ---------- */
+      /* ---------- Candados, elegibles y costo de reprobar ----------
+         Devuelve cuántas materias puedes llevar ya (prerrequisitos cubiertos y
+         que no estés cursando). */
       function updateLocks() {
+        let eligible = 0;
         ALL_COURSES.forEach((course) => {
           const reqs = PREREQS[course.id] || [];
           const el = document.querySelector(`[data-id="${course.id}"]`);
           if (!el) return;
-          const done = statusOf(course.id) === "completada";
+          const st = statusOf(course.id);
+          const done = st === "completada";
           const missing = reqs.filter((r) => statusOf(r) !== "completada");
           const locked = !done && missing.length > 0;
           el.setAttribute("data-locked", locked ? "true" : "false");
+          // El título original (nombre — bloque) se guarda una vez para poder
+          // colgarle la lista completa de prerrequisitos sin perderlo.
+          if (el.dataset.titleBase === undefined)
+            el.dataset.titleBase = el.getAttribute("title") || "";
           if (locked) {
             const list = missing.map(nameOf).join(", ");
+            el.setAttribute("data-lock-hint", `Faltan prerrequisitos: ${list}`);
+            el.setAttribute("title", `${el.dataset.titleBase} · Faltan: ${list}`);
+            // Versión corta para el aviso dentro de la tarjeta: a 9.5px, tres
+            // nombres completos no se leen y desbordan. Uno + cuenta sí.
             el.setAttribute(
-              "data-lock-hint",
-              `Faltan prerrequisitos: ${list}`
+              "data-lock-short",
+              missing.length === 1
+                ? `Primero: ${nameOf(missing[0])}`
+                : `Primero: ${nameOf(missing[0])} +${missing.length - 1} más`
             );
           } else {
             el.removeAttribute("data-lock-hint");
+            el.removeAttribute("data-lock-short");
+            el.setAttribute("title", el.dataset.titleBase);
+          }
+
+          const elig = !done && st !== "en_curso" && missing.length === 0;
+          el.setAttribute("data-elig", elig ? "true" : "false");
+          if (elig) eligible++;
+
+          // Costo de reprobar: descendientes que siguen sin completarse.
+          const strip = el.querySelector(".impact");
+          if (!strip) return;
+          let blocked = 0;
+          if (!done) {
+            (DESCENDANTS.get(course.id) || []).forEach((d) => {
+              if (statusOf(d) !== "completada") blocked++;
+            });
+          }
+          if (blocked > 0) {
+            el.setAttribute("data-impact", String(blocked));
+            strip.textContent =
+              "Bloquea " + blocked + (blocked === 1 ? " materia" : " materias");
+          } else {
+            el.removeAttribute("data-impact");
+            strip.textContent = "";
           }
         });
+        return eligible;
       }
 
       function applyAll() {
@@ -427,9 +785,34 @@ const statusEntries = Object.entries(STATUSES);
         renderProgress();
       }
 
+      // Shift + clic: aplica el estado de la última materia clicada a todo el
+      // rango entre ambas, dentro de la misma columna. Sirve para corregir
+      // varias de golpe sin repetir clics.
+      let lastCourseEl = null;
       document.addEventListener("click", (e) => {
         const el = e.target.closest("[data-id]");
-        if (el) cycle(el.getAttribute("data-id"), 1);
+        if (!el) return;
+        const col = el.closest(".col");
+        if (e.shiftKey && lastCourseEl && lastCourseEl !== el && col &&
+            lastCourseEl.closest(".col") === col) {
+          const items = [...col.querySelectorAll("[data-id]")];
+          let a = items.indexOf(lastCourseEl);
+          let b = items.indexOf(el);
+          if (a > b) [a, b] = [b, a];
+          const st = statusOf(lastCourseEl.getAttribute("data-id"));
+          items.slice(a, b + 1).forEach((x) => {
+            const id = x.getAttribute("data-id");
+            const s = allowed(id, st, state) ? st : "planeada";
+            if (s === "pendiente") delete state[id];
+            else state[id] = s;
+          });
+          save();
+          applyAll();
+          lastCourseEl = el;
+          return;
+        }
+        cycle(el.getAttribute("data-id"), 1);
+        lastCourseEl = el;
       });
       document.addEventListener("contextmenu", (e) => {
         const el = e.target.closest("[data-id]");
@@ -470,6 +853,11 @@ const statusEntries = Object.entries(STATUSES);
             save();
             applyAll();
             closeResetModal();
+            // Tras reiniciar se vuelve a ofrecer el arranque en 2 clics.
+            try {
+              localStorage.removeItem(ONB_KEY);
+            } catch {}
+            openOnboarding();
           });
       }
 
@@ -485,9 +873,22 @@ const statusEntries = Object.entries(STATUSES);
       function markSemesters(upto, lastStatus) {
         for (let i = 0; i <= upto; i++) {
           const st = i === upto ? lastStatus : "completada";
-          semCourseIds(i).forEach((id) => {
-            state[id] = st;
-          });
+          const ids = semCourseIds(i);
+          // Misma regla que al hacer clic: sin prerrequisitos cubiertos, lo más
+          // cercano honesto es "planeada". Se repite hasta que no haya cambios
+          // porque una materia puede depender de otra del mismo semestre y el
+          // orden de la lista no lo garantiza.
+          for (let pass = 0; pass < ids.length; pass++) {
+            let changed = false;
+            ids.forEach((id) => {
+              const target = allowed(id, st, state) ? st : "planeada";
+              if (state[id] !== target) {
+                state[id] = target;
+                changed = true;
+              }
+            });
+            if (!changed) break;
+          }
         }
         save();
         applyAll();
@@ -580,7 +981,9 @@ const statusEntries = Object.entries(STATUSES);
         poster.className = "poster";
         // Mismo ancho que el mapa en vivo (para conservar el layout y que las
         // flechas ya calculadas sigan alineadas).
-        const mapW = Math.round(mapEl.getBoundingClientRect().width);
+        // Mismo ancho que usa el ruteo (offsetWidth, entero) para que el SVG ya
+        // calculado siga alineado con las tarjetas dentro del clon.
+        const mapW = mapEl.offsetWidth;
         poster.style.width = mapW + 56 + "px"; // mapa + 28*2 padding
 
         const head = document.createElement("div");
@@ -624,6 +1027,8 @@ const statusEntries = Object.entries(STATUSES);
           .forEach((el) =>
             el.classList.remove("is-dim", "is-related", "is-active")
           );
+        // La imagen siempre sale con el mapa completo, sin lente aplicada.
+        mapClone.setAttribute("data-lens", "all");
 
         poster.appendChild(mapClone);
 
@@ -829,28 +1234,35 @@ const statusEntries = Object.entries(STATUSES);
       function layoutWires() {
         wireRAF = 0;
         if (!svg || !mapEl) return;
-        const m = mapEl.getBoundingClientRect();
-        svg.setAttribute("width", m.width);
-        svg.setAttribute("height", m.height);
+        // Toda la geometría se lee con offset*, NUNCA con getBoundingClientRect:
+        // los rects incluyen los transforms de CSS. La tarjeta "en curso" lleva
+        // scale(1.045) y el hover levanta 2px, así que medir con rects hacía que
+        // el ruteo cambiara solo por mover el cursor o marcar una materia.
+        // offsetTop/offsetLeft son enteros, relativos a .map (su offsetParent,
+        // sin borde ni padding → mismo origen) e inmunes a transform.
+        svg.setAttribute("width", mapEl.offsetWidth);
+        svg.setAttribute("height", mapEl.offsetHeight);
 
         const rect = {};
         document.querySelectorAll("[data-id]").forEach((el) => {
-          const b = el.getBoundingClientRect();
+          const top = el.offsetTop;
+          const h = el.offsetHeight;
           rect[el.getAttribute("data-id")] = {
-            left: b.left - m.left,
-            right: b.right - m.left,
-            top: b.top - m.top,
-            cy: b.top + b.height / 2 - m.top,
-            h: b.height,
+            left: el.offsetLeft,
+            right: el.offsetLeft + el.offsetWidth,
+            top,
+            cy: top + h / 2,
+            h,
           };
         });
 
         // --- Geometría de la rejilla (para rutear por los canales/gutters) ---
         const grids = document.querySelectorAll(".grid");
-        const cols = [...grids[0].querySelectorAll(".col")].map((c) => {
-          const b = c.getBoundingClientRect();
-          return { left: b.left - m.left, right: b.right - m.left };
-        });
+        const colEls = [...grids[0].querySelectorAll(".col")];
+        const cols = colEls.map((c) => ({
+          left: c.offsetLeft,
+          right: c.offsetLeft + c.offsetWidth,
+        }));
         const vChan = []; // vChan[i] = x del gutter a la derecha de la col i
         for (let i = 0; i < cols.length - 1; i++)
           vChan[i] = (cols[i].right + cols[i + 1].left) / 2;
@@ -866,12 +1278,26 @@ const statusEntries = Object.entries(STATUSES);
           }
           return best;
         };
-        const mainCards = [...grids[0].querySelectorAll(".course")];
-        const tops = [
-          ...new Set(mainCards.map((c) => Math.round(c.getBoundingClientRect().top - m.top))),
-        ].sort((a, b) => a - b);
-        const H = mainCards.length ? mainCards[0].getBoundingClientRect().height : 130;
-        const GAP = tops.length > 1 ? tops[1] - tops[0] - H : 12;
+        // Las filas se leen de UNA sola columna (la más larga). Todas las
+        // columnas comparten la misma rejilla vertical, y tomarlas de una sola
+        // impide que una tarjeta suelta inyecte una fila fantasma.
+        let rowCol = colEls[0] || null;
+        colEls.forEach((c) => {
+          if (
+            !rowCol ||
+            c.querySelectorAll(".course").length >
+              rowCol.querySelectorAll(".course").length
+          )
+            rowCol = c;
+        });
+        const rowCards = rowCol ? [...rowCol.querySelectorAll(".course")] : [];
+        const tops = rowCards.map((c) => c.offsetTop);
+        const H = rowCards.length ? rowCards[0].offsetHeight : 130;
+        // El hueco entre filas SIEMPRE es positivo; si la medición no lo es,
+        // algo cambió en el layout y vale más un valor sano que un canal
+        // horizontal trazado en medio de las tarjetas.
+        const pitch = tops.length > 1 ? tops[1] - tops[0] - H : 0;
+        const GAP = pitch > 0 ? pitch : 12;
         const rowTopNear = (cy) => {
           let best = tops[0] || 0;
           let bd = Infinity;
@@ -1197,8 +1623,154 @@ const statusEntries = Object.entries(STATUSES);
         });
       }
 
+      /* ---------- Lente: "Cursando" / "Puedo llevar" ----------
+         No cambia el estado de nada: solo atenúa lo que no entra en la
+         respuesta. Es transitoria a propósito (no se guarda). */
+      function setLens(mode) {
+        if (!["all", "now", "next"].includes(mode)) mode = "all";
+        mapEl.setAttribute("data-lens", mode);
+        document.querySelectorAll(".lens-toggle [data-lens]").forEach((b) => {
+          const on = b.getAttribute("data-lens") === mode;
+          b.classList.toggle("is-on", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      }
+      document.querySelectorAll(".lens-toggle [data-lens]").forEach((b) => {
+        b.addEventListener("click", () => setLens(b.getAttribute("data-lens")));
+      });
+      setLens("all");
+
+      /* ---------- Copiar liga con el avance dentro ---------- */
+      const copyBtn = document.querySelector("#copy-link");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+          const label = copyBtn.querySelector("span") || copyBtn;
+          if (copyBtn.dataset.busy) return;
+          const prev = label.textContent;
+          const url =
+            location.origin + location.pathname + "#p=" + encodeState(state);
+          let ok = false;
+          try {
+            await navigator.clipboard.writeText(url);
+            ok = true;
+          } catch {
+            // Fallback para contextos sin permiso de portapapeles (http://…).
+            try {
+              const ta = document.createElement("textarea");
+              ta.value = url;
+              ta.style.cssText = "position:fixed;left:-9999px;top:0";
+              document.body.appendChild(ta);
+              ta.select();
+              ok = document.execCommand("copy");
+              ta.remove();
+            } catch {}
+          }
+          copyBtn.dataset.busy = "1";
+          label.textContent = ok ? "¡Copiado!" : "No se pudo copiar";
+          copyBtn.classList.toggle("is-ok", ok);
+          setTimeout(() => {
+            label.textContent = prev;
+            copyBtn.classList.remove("is-ok");
+            delete copyBtn.dataset.busy;
+          }, 1800);
+        });
+      }
+
+      /* ---------- Liga entrante que choca con el avance local ---------- */
+      const linkModal = document.querySelector("#link-modal");
+      if (linkModal && linkConflict) {
+        const closeLinkModal = () => {
+          linkModal.hidden = true;
+          lockScroll(false);
+        };
+        linkModal.hidden = false;
+        lockScroll(true);
+        const useBtn = document.querySelector("#link-use");
+        if (useBtn) {
+          useBtn.addEventListener("click", () => {
+            state = incoming;
+            save();
+            applyAll();
+            closeLinkModal();
+          });
+          useBtn.focus();
+        }
+        const keepBtn = document.querySelector("#link-keep");
+        if (keepBtn) keepBtn.addEventListener("click", closeLinkModal);
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !linkModal.hidden) closeLinkModal();
+        });
+      }
+
+      /* ---------- Arranque en 2 clics ---------- */
+      const onbModal = document.querySelector("#onb-modal");
+      function closeOnboarding() {
+        if (onbModal) onbModal.hidden = true;
+        lockScroll(false);
+        try {
+          localStorage.setItem(ONB_KEY, "1");
+        } catch {}
+      }
+      function openOnboarding() {
+        if (!onbModal) return;
+        onbModal.hidden = false;
+        lockScroll(true);
+        const first = onbModal.querySelector("[data-onb-sem]");
+        if (first) first.focus();
+      }
+      if (onbModal) {
+        onbModal.querySelectorAll("[data-onb-sem]").forEach((b) => {
+          b.addEventListener("click", () => {
+            markSemesters(+b.getAttribute("data-onb-sem"), "en_curso");
+            closeOnboarding();
+          });
+        });
+        const skipBtn = document.querySelector("#onb-skip");
+        if (skipBtn) skipBtn.addEventListener("click", closeOnboarding);
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !onbModal.hidden) closeOnboarding();
+        });
+      }
+
+      /* ---------- Aviso de liga ilegible ----------
+         Sin esto el rechazo era mudo: abrías una liga esperando tu avance y
+         veías la pantalla de siempre, sin saber si falló la app o la liga. */
+      const badLinkModal = document.querySelector("#bad-link-modal");
+      function closeBadLink() {
+        if (badLinkModal) badLinkModal.hidden = true;
+        lockScroll(false);
+        maybeOnboard();
+      }
+      if (badLinkModal) {
+        const badOk = document.querySelector("#bad-link-ok");
+        if (badOk) badOk.addEventListener("click", closeBadLink);
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !badLinkModal.hidden) closeBadLink();
+        });
+      }
+
+      // Primera visita: sin progreso, sin liga entrante y sin haberlo visto ya.
+      function maybeOnboard() {
+        let seen = true;
+        try {
+          seen = !!localStorage.getItem(ONB_KEY);
+        } catch {}
+        if (!seen && !incoming && isEmptyState(state)) openOnboarding();
+      }
+
       applyAll();
       scheduleWireLayout();
+
+      // Una liga inválida implica incoming === null, así que nunca coincide con
+      // el modal de choque: los dos casos son excluyentes.
+      if (link.kind === "invalid" && badLinkModal) {
+        badLinkModal.hidden = false;
+        lockScroll(true);
+        const badOk = document.querySelector("#bad-link-ok");
+        if (badOk) badOk.focus();
+      } else if (!linkConflict) {
+        maybeOnboard();
+      }
     </script>
 
     <style is:global>
@@ -1780,63 +2352,94 @@ const statusEntries = Object.entries(STATUSES);
         color: var(--st-pendiente);
       }
 
-      /* ---------- Toolbar ---------- */
+      /* ---------- Toolbar: una sola fila ----------
+         Todos los controles comparten alto (--ctl-h) para que la fila lea como
+         una sola pieza. La leyenda de estados se quitó de aquí: los recuadros
+         de la topbar ya son la leyenda (mismo color, y además con el conteo). */
       .toolbar {
+        --ctl-h: 34px;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 14px;
-        margin: 16px 2px;
+        gap: 10px;
+        margin: 14px 2px;
       }
-      .hint {
-        margin: 0;
-        font-size: 13px;
+      .tb-spacer {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      /* Botón de ayuda con globo en CSS (sin JS) */
+      .help-btn {
+        position: relative;
+        flex: none;
+        width: var(--ctl-h);
+        height: var(--ctl-h);
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
         color: var(--ink-2);
-      }
-      .hint b {
-        color: var(--ink-1);
-      }
-      .status-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-left: auto;
-      }
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 5px 12px 5px 9px;
-        border-radius: 999px;
         background: var(--panel);
         border: 1px solid var(--line);
+        border-radius: 10px;
+        cursor: help;
+        transition: color 0.15s ease, background 0.15s ease;
+      }
+      .help-btn:hover {
         color: var(--ink-1);
+        background: var(--surface-2);
       }
-      .chip .dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
+      .help-btn svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
-      .chip.st-pendiente .dot {
-        background: var(--st-pendiente);
+      .help-tip {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        z-index: 40;
+        width: 385px;
+        padding: 11px 13px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.65;
+        color: var(--ink-2);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-3px);
+        transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
       }
-      .chip.st-planeada .dot {
-        background: var(--st-planeada);
+      .help-tip b {
+        color: var(--ink-1);
+        font-weight: 700;
       }
-      .chip.st-en_curso .dot {
-        background: var(--st-en_curso);
-      }
-      .chip.st-completada .dot {
-        background: var(--st-completada);
+      .help-btn:hover .help-tip,
+      .help-btn:focus-visible .help-tip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
       }
 
       /* Toggle de flechas de seriación */
       .wires-toggle {
         display: inline-flex;
-        align-items: center;
-        gap: 6px;
+        /* Baseline (no center): la etiqueta (11px) y las opciones (12px) tienen
+           métricas distintas, así que centrarlas por caja las deja en renglones
+           visualmente distintos. El padding vertical recentra las píldoras. */
+        align-items: baseline;
+        flex: none;
+        gap: 5px;
+        height: var(--ctl-h, 34px);
         padding: 3px 4px 3px 10px;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -1851,6 +2454,8 @@ const statusEntries = Object.entries(STATUSES);
         margin-right: 2px;
       }
       .wt-opt {
+        display: inline-flex;
+        align-items: center;
         font: inherit;
         font-size: 12px;
         font-weight: 700;
@@ -1858,7 +2463,9 @@ const statusEntries = Object.entries(STATUSES);
         background: transparent;
         border: 0;
         border-radius: 999px;
-        padding: 5px 11px;
+        height: calc(var(--ctl-h, 34px) - 8px);
+        padding: 0 10px;
+        white-space: nowrap;
         cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
       }
@@ -1871,6 +2478,9 @@ const statusEntries = Object.entries(STATUSES);
         background: #1b1e24;
       }
       .btn-reset {
+        display: inline-flex;
+        align-items: center;
+        flex: none;
         font: inherit;
         font-size: 13px;
         font-weight: 600;
@@ -1878,7 +2488,9 @@ const statusEntries = Object.entries(STATUSES);
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 10px;
-        padding: 7px 14px;
+        height: var(--ctl-h, 34px);
+        padding: 0 14px;
+        white-space: nowrap;
         cursor: pointer;
         transition: all 0.15s ease;
       }
@@ -1890,6 +2502,7 @@ const statusEntries = Object.entries(STATUSES);
       .btn-share {
         display: inline-flex;
         align-items: center;
+        flex: none;
         gap: 7px;
         font: inherit;
         font-size: 13px;
@@ -1898,7 +2511,9 @@ const statusEntries = Object.entries(STATUSES);
         background: #1b1e24;
         border: 1px solid #1b1e24;
         border-radius: 10px;
-        padding: 7px 16px;
+        height: var(--ctl-h, 34px);
+        padding: 0 14px;
+        white-space: nowrap;
         cursor: pointer;
         transition: background 0.15s ease, opacity 0.15s ease;
       }
@@ -1990,7 +2605,9 @@ const statusEntries = Object.entries(STATUSES);
       .wires {
         position: absolute;
         inset: 0;
-        z-index: 5;
+        /* Debajo de las tarjetas (.course va a z-index 1). Aunque una ruta roce
+           una tarjeta, la línea pasa por detrás y nunca le raya la cara. */
+        z-index: 0;
         width: 100%;
         height: 100%;
         pointer-events: none;
@@ -2087,6 +2704,7 @@ const statusEntries = Object.entries(STATUSES);
       /* ---------- Tarjeta de materia ---------- */
       .course {
         position: relative;
+        z-index: 1; /* por encima del overlay de flechas */
         text-align: left;
         font: inherit;
         cursor: pointer;
@@ -2421,6 +3039,8 @@ const statusEntries = Object.entries(STATUSES);
 
       /* ---------- Leyenda de bloques (vertical, esquina inferior derecha) -- */
       .blocks {
+        position: relative;
+        z-index: 1;
         margin-top: 26px;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -2433,6 +3053,13 @@ const statusEntries = Object.entries(STATUSES);
         grid-column: 7 / 9;
         grid-row: 1 / 5;
         align-self: end; /* fondo alineado con las tarjetas de Tutorías */
+        /* Se recorta por la izquierda (ancho al contenido) para no chocar con la
+           flecha que sube de Inglés B1 III; el borde derecho sigue pegado a la
+           columna 8. */
+        justify-self: end;
+        width: max-content;
+        min-width: 300px;
+        max-width: 100%;
         margin-top: 0;
       }
       .blocks h2 {
@@ -2710,11 +3337,305 @@ const statusEntries = Object.entries(STATUSES);
         }
       }
 
+      /* ===================================================================
+         RESPUESTAS DIRECTAS: cuánto falta, qué curso, qué puedo llevar.
+         Todo se deriva del estado que ya guarda la app; nada pide capturar.
+         =================================================================== */
+
+      /* "Te faltan N materias · X créditos · ~Y semestres" */
+      .progress-left {
+        margin-top: 3px;
+        font-size: 12.5px;
+        color: var(--ink-2);
+      }
+      .progress-left b {
+        color: var(--ink-1);
+        font-weight: 700;
+      }
+      .progress-left.is-done b {
+        color: var(--st-completada);
+      }
+
+      /* Contador de la lente ("Cursando 3", "Puedo llevar 7") */
+      .wt-n {
+        display: inline-grid;
+        place-items: center;
+        min-width: 17px;
+        height: 17px;
+        margin-left: 5px;
+        padding: 0 4px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-style: normal;
+        font-weight: 800;
+        background: var(--track-bg);
+        color: var(--ink-2);
+      }
+      .wt-opt.is-on .wt-n {
+        background: rgba(255, 255, 255, 0.22);
+        color: #fff;
+      }
+
+      /* Lente: atenúa lo que no responde la pregunta (no cambia estados) */
+      .map[data-lens="now"] .course:not([data-status="en_curso"]),
+      .map[data-lens="next"] .course:not([data-elig="true"]) {
+        opacity: 0.16;
+        filter: grayscale(1);
+      }
+      .map[data-lens="now"] .course[data-status="en_curso"],
+      .map[data-lens="next"] .course[data-elig="true"] {
+        box-shadow: 0 0 0 2px var(--accent), 0 8px 20px rgba(20, 24, 34, 0.18);
+      }
+      .map[data-lens="now"] .wires,
+      .map[data-lens="next"] .wires {
+        opacity: 0.18;
+      }
+
+      /* Avance por semestre, dentro de la cabecera de la columna.
+         .sem-head ya es grid + place-items:center → los dos hijos se apilan. */
+      .sem-head {
+        align-content: center;
+        gap: 1px;
+      }
+      .sem-head span {
+        line-height: 1;
+      }
+      .sem-count {
+        font-size: 9.5px;
+        font-style: normal;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        opacity: 0.62;
+      }
+      .sem-count.is-full {
+        opacity: 1;
+        color: #8cc63e;
+      }
+
+      /* Costo de reprobar: franja que solo aparece al pasar el cursor */
+      .impact {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 6px 8px;
+        font-size: 9.5px;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        text-align: center;
+        color: #7a3d00;
+        background: #ffd9a3;
+        box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08);
+      }
+      .impact::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        flex: none;
+        background: center / contain no-repeat
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 2 4 14h6l-1 8 9-12h-6l1-8z' fill='%237a3d00'/%3E%3C/svg%3E");
+      }
+      .course[data-impact]:hover .impact {
+        display: flex;
+      }
+      .map[data-lens="now"] .impact,
+      .map[data-lens="next"] .impact {
+        display: none !important;
+      }
+
+      /* ---------- Candado que rebota al intentar "en curso" ---------- */
+      /* El candado mide 17px en una esquina: para que el rebote se note hay que
+         agrandarlo mientras dura, no solo moverlo unos pixeles. */
+      @keyframes lockShake {
+        0%   { transform: scale(1) translateX(0) rotate(0); }
+        10%  { transform: scale(1.45) translateX(-6px) rotate(-16deg); }
+        25%  { transform: scale(1.45) translateX(6px) rotate(16deg); }
+        40%  { transform: scale(1.4) translateX(-5px) rotate(-13deg); }
+        55%  { transform: scale(1.4) translateX(5px) rotate(13deg); }
+        70%  { transform: scale(1.3) translateX(-3px) rotate(-8deg); }
+        85%  { transform: scale(1.15) translateX(2px) rotate(4deg); }
+        100% { transform: scale(1) translateX(0) rotate(0); }
+      }
+      /* transform, NO margin: margin-left es layout y movería offsetLeft, que es
+         justo lo que lee el ruteo de flechas. Con transform el trazo no se
+         entera. No hay conflicto con el scale(1.045) de "en curso" porque una
+         tarjeta con candado nunca puede estar en ese estado. */
+      @keyframes cardNudge {
+        0%, 100% { transform: translateX(0); }
+        10% { transform: translateX(-7px); }
+        25% { transform: translateX(7px); }
+        40% { transform: translateX(-5px); }
+        55% { transform: translateX(5px); }
+        70% { transform: translateX(-3px); }
+        85% { transform: translateX(1.5px); }
+      }
+      /* Variantes atenuadas para quien pidió menos animación en su sistema */
+      @keyframes lockShakeSoft {
+        0%, 100% { transform: scale(1) translateX(0); }
+        30% { transform: scale(1.3) translateX(-3px); }
+        70% { transform: scale(1.3) translateX(3px); }
+      }
+      @keyframes cardNudgeSoft {
+        0%, 100% { transform: translateX(0); }
+        30% { transform: translateX(-3px); }
+        70% { transform: translateX(3px); }
+      }
+      .course[data-shake="1"] .lock {
+        animation: lockShake 0.62s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        background: #e23b3b;
+        box-shadow: 0 0 0 4px rgba(226, 59, 59, 0.3);
+        z-index: 4; /* el candado agrandado no se mete debajo del nombre */
+      }
+      .course[data-shake="1"] .lock svg {
+        fill: #fff;
+      }
+      .course[data-shake="1"] {
+        animation: cardNudge 0.62s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        border-color: #e23b3b;
+        box-shadow: 0 0 0 3px rgba(226, 59, 59, 0.35),
+          0 10px 24px rgba(226, 59, 59, 0.28);
+      }
+
+      /* Aviso con lo que falta, mientras dura el rebote */
+      .lock-msg {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        padding: 6px 8px;
+        font-size: 9.5px;
+        font-weight: 800;
+        line-height: 1.3;
+        text-align: center;
+        color: #fff;
+        background: #e23b3b;
+        /* Tope duro: el mensaje corto cabe de sobra, pero si un nombre de
+           materia fuera larguísimo nunca se come la tarjeta entera. */
+        max-height: 62px;
+        overflow: hidden;
+      }
+      .course[data-shake="1"] .lock-msg {
+        display: block;
+      }
+      /* Mientras se avisa del bloqueo, el dato de impacto estorba */
+      .course[data-shake="1"] .impact {
+        display: none !important;
+      }
+
+      /* ---------- Arranque en 2 clics ---------- */
+      .modal--wide {
+        max-width: 440px;
+      }
+      .onb-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin: 0 0 18px;
+      }
+      .onb-sem {
+        font: inherit;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--ink-1);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 13px 0;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease,
+          border-color 0.15s ease, transform 0.12s ease;
+      }
+      .onb-sem:hover {
+        color: var(--accent-ink, #fff);
+        background: var(--accent);
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+      .onb-sem:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* Botón "Copiar liga" (secundario, junto a Compartir) */
+      .btn-share--alt {
+        color: var(--ink-1);
+        background: var(--panel);
+        border-color: var(--line);
+      }
+      .btn-share--alt svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+      }
+      .btn-share--alt:hover {
+        background: var(--surface-2);
+      }
+      .btn-share--alt.is-ok {
+        color: #fff;
+        background: var(--st-completada);
+        border-color: var(--st-completada);
+      }
+
+      /* ---------- Ajustes de los añadidos en modo oscuro ---------- */
+      :root[data-theme="dark"] .wt-n {
+        background: rgba(255, 255, 255, 0.09);
+      }
+      :root[data-theme="dark"] .impact {
+        color: #ffce8a;
+        background: #4a3413;
+      }
+      :root[data-theme="dark"] .impact::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 2 4 14h6l-1 8 9-12h-6l1-8z' fill='%23ffce8a'/%3E%3C/svg%3E");
+      }
+      :root[data-theme="dark"] .onb-sem {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      /* En oscuro .btn-share se vuelve azul de acento; "Copiar liga" es
+         secundario, así que recupera el aspecto neutro (mayor especificidad). */
+      :root[data-theme="dark"] .btn-share.btn-share--alt {
+        color: var(--ink-1);
+        background: var(--panel);
+        border-color: var(--line);
+      }
+      :root[data-theme="dark"] .btn-share.btn-share--alt:hover {
+        filter: none;
+        background: rgba(255, 255, 255, 0.07);
+      }
+      :root[data-theme="dark"] .btn-share.btn-share--alt.is-ok {
+        color: #041a0e;
+        background: var(--st-completada);
+        border-color: var(--st-completada);
+      }
+      /* En oscuro la cabecera de semestre es CLARA (#e7eaf0): el verde tiene
+         que oscurecerse para seguir siendo legible sobre ella. */
+      :root[data-theme="dark"] .sem-count.is-full {
+        color: #14804a;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .course,
         .course::before,
         .c-status::before {
           animation: none !important;
+        }
+        .onb-sem:hover {
+          transform: none;
+        }
+        /* El rebote del candado SÍ se conserva: es la respuesta a una acción
+           concreta del usuario, no movimiento decorativo ni en bucle. Se atenúa
+           (menos recorrido, sin giro, más corto) en vez de eliminarse, porque
+           sin él la única señal sería un cambio de color.
+           Gana a `.course { animation: none }` de arriba por especificidad. */
+        .course[data-shake="1"] {
+          animation: cardNudgeSoft 0.3s ease !important;
+        }
+        .course[data-shake="1"] .lock {
+          animation: lockShakeSoft 0.3s ease !important;
         }
       }
 
@@ -2726,8 +3647,9 @@ const statusEntries = Object.entries(STATUSES);
         .stats {
           grid-template-columns: repeat(4, 1fr);
         }
-        .status-legend {
-          margin-left: 0;
+        /* Sin ancho para una sola fila: el separador deja de empujar. */
+        .tb-spacer {
+          display: none;
         }
       }
     </style>
