@@ -38,7 +38,7 @@ export const SEMESTERS = [
     c("salud-desarrollo-personal", "Salud y desarrollo personal", "formacion_general", 5.62, "3hc"),
     c("precalculo", "Precálculo", "ciencias_basicas", 9.37, "5hc"),
     c("analisis-informacion-comunicacion", "Análisis de la información y comunicación", "formacion_general", 5.62, "3hc"),
-    c("introduccion-ingenieria-software", "Introducción a la ingeniería de software", "formacion_general", 5.62, "3hc"),
+    c("introduccion-ingenieria-software", "Introducción a la ingeniería de software", "admin_proyectos", 5.62, "3hc"),
     c("programacion-1", "Programación I con Lab", "construccion", 11.25, "3hc 3hl"),
   ],
   // Semestre 2
@@ -46,7 +46,7 @@ export const SEMESTERS = [
     c("calculo", "Cálculo", "ciencias_basicas", 9.37, "5hc"),
     c("matematicas-discretas", "Matemáticas discretas", "ciencias_basicas", 9.37, "5hc"),
     c("tecnologia-empresa", "Tecnología y empresa", "admin_proyectos", 5.62, "3hc"),
-    c("sistemas-operativos-arquitectura", "Sistemas operativos y arquitectura de computadoras", "construccion", 9.37, "5hc"),
+    c("sistemas-operativos-arquitectura", "Sistemas operativos y arquitectura de computadoras", "diseno", 9.37, "5hc"),
     c("programacion-2", "Programación II c/Lab", "construccion", 11.25, "3hc 3hl"),
   ],
   // Semestre 3
@@ -63,8 +63,8 @@ export const SEMESTERS = [
   // Semestre 4
   [
     c("optativa-formacion-general-1", "Optativa de formación general I", "formacion_general", 5.62, "3hc"),
-    c("seguridad-informatica", "Seguridad informática", "formacion_general", 5.62, "3hc"),
-    c("analisis-algoritmos", "Análisis de algoritmos", "ciencias_basicas", 5.62, "3hc"),
+    c("seguridad-informatica", "Seguridad informática", "construccion", 5.62, "3hc"),
+    c("analisis-algoritmos", "Análisis de algoritmos", "construccion", 5.62, "3hc"),
     c("modelado-procesos", "Modelado de procesos", "diseno", 5.62, "3hc"),
     c("bases-datos-avanzadas", "Bases de datos avanzadas", "construccion", 5.62, "3hc"),
     c("diseno-software", "Diseño de software", "diseno", 5.62, "3hc"),
@@ -74,7 +74,7 @@ export const SEMESTERS = [
   // Semestre 5
   [
     c("optativa-formacion-general-2", "Optativa de formación general II", "formacion_general", 5.62, "3hc"),
-    c("metodos-numericos-computacionales", "Métodos numéricos computacionales", "ciencias_basicas", 5.62, "3hc"),
+    c("metodos-numericos-computacionales", "Métodos numéricos computacionales", "construccion", 5.62, "3hc"),
     c("diseno-sistemas-interactivos", "Diseño de sistemas interactivos", "diseno", 5.62, "3hc"),
     c("ingenieria-requisitos", "Ingeniería de requisitos", "diseno", 5.62, "3hc"),
     c("arquitectura-software", "Arquitectura de software", "diseno", 5.62, "3hc"),
@@ -84,9 +84,9 @@ export const SEMESTERS = [
   // Semestre 6
   [
     c("axiologia-profesion", "Axiología para la profesión", "formacion_general", 5.62, "3hc"),
-    c("pruebas-software", "Pruebas de software", "admin_proyectos", 5.62, "3hc"),
+    c("pruebas-software", "Pruebas de software", "construccion", 5.62, "3hc"),
     c("innovacion-tecnologica", "Innovación tecnológica", "admin_proyectos", 5.62, "3hc"),
-    c("proyecto-software-integrador", "Proyecto de software integrador", "diseno", 5.62, "3hc"),
+    c("proyecto-software-integrador", "Proyecto de software integrador", "admin_proyectos", 5.62, "3hc"),
     c("sistemas-empotrados", "Sistemas empotrados", "construccion", 5.62, "3hc"),
     c("aplicaciones-moviles", "Aplicaciones móviles", "construccion", 5.62, "3hc"),
     c("sistemas-distribuidos", "Sistemas distribuidos", "construccion", 5.62, "3hc"),
@@ -152,7 +152,7 @@ export const PREREQS = {
   "seguridad-informatica": ["redes"],
   "administracion-proyectos-software": ["administracion-proyectos"],
   "calidad-software": ["administracion-proyectos-software"],
-  "business-strategy-technology": ["innovacion-tecnologica"],
+  "business-strategy-technology": ["innovacion-tecnologica", "ingles-b1-3"],
   "metodos-agiles-desarrollo": [
     "innovacion-tecnologica",
     "administracion-proyectos-software",
